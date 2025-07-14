@@ -1000,8 +1000,8 @@ async def process_payment(business_id: str, payment: PaymentRequest):
         raise HTTPException(status_code=404, detail="Business not found")
     
     # Check if business is ready for payment
-    if business["status"] != BusinessStatus.PENDING_PAYMENT:
-        raise HTTPException(status_code=400, detail="Business not ready for payment")
+    if business["status"] not in [BusinessStatus.PENDING_PAYMENT, BusinessStatus.DRAFT]:
+        raise HTTPException(status_code=400, detail=f"Business not ready for payment. Current status: {business['status']}")
     
     # Mock payment processing
     payment_id = str(uuid.uuid4())
