@@ -37,6 +37,631 @@ const getRiskGradeColor = (grade) => {
   }
 };
 
+// Business Listing Form Component
+const BusinessListingForm = ({ onClose, onSuccess }) => {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    industry: '',
+    region: '',
+    annual_revenue: '',
+    ebitda: '',
+    asking_price: '',
+    risk_grade: '',
+    seller_name: '',
+    seller_email: '',
+    reason_for_sale: '',
+    growth_opportunities: '',
+    financial_data: [
+      { year: new Date().getFullYear(), revenue: '', profit_loss: '', ebitda: '', assets: '', liabilities: '', cash_flow: '' },
+      { year: new Date().getFullYear() - 1, revenue: '', profit_loss: '', ebitda: '', assets: '', liabilities: '', cash_flow: '' },
+      { year: new Date().getFullYear() - 2, revenue: '', profit_loss: '', ebitda: '', assets: '', liabilities: '', cash_flow: '' }
+    ],
+    key_metrics: {}
+  });
+  const [industries, setIndustries] = useState([]);
+  const [regions, setRegions] = useState([]);
+  const [riskGrades, setRiskGrades] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetchFilterOptions();
+  }, []);
+
+  const fetchFilterOptions = async () => {
+    try {
+      const [industriesRes, regionsRes, riskGradesRes] = await Promise.all([
+        axios.get(`${API}/industries`),
+        axios.get(`${API}/regions`),
+        axios.get(`${API}/risk-grades`)
+      ]);
+      
+      setIndustries(industriesRes.data);
+      setRegions(regionsRes.data);
+      setRiskGrades(riskGradesRes.data);
+    } catch (error) {
+      console.error("Error fetching filter options:", error);
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleFinancialDataChange = (index, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      financial_data: prev.financial_data.map((item, i) => 
+        i === index ? { ...item, [field]: value } : item
+      )
+    }));
+  };
+
+  const handleKeyMetricChange = (key, value) => {
+    setFormData(prev => ({
+      ...prev,
+      key_metrics: {
+        ...prev.key_metrics,
+        [key]: value
+      }
+    }));
+  };
+
+  const validateStep = (step) => {
+    switch (step) {
+      case 1:
+        return formData.title && formData.description && formData.industry && formData.region;
+      case 2:
+        return formData.annual_revenue && formData.ebitda && formData.asking_price && formData.risk_grade;
+      case 3:
+        return formData.seller_name && formData.seller_email && formData.reason_for_sale;
+      case 4:
+        return formData.financial_data.every(item => item.revenue && item.profit_loss && item.ebitda);
+      default:
+        return true;
+    }
+  };
+
+  const handleNext = () => {
+    if (validateStep(currentStep)) {
+      setCurrentStep(prev => prev + 1);
+      setError('');
+    } else {
+      setError('Please fill in all required fields');
+    }
+  };
+
+  const handlePrevious = () => {
+    setCurrentStep(prev => prev - 1);
+    setError('');
+  };
+
+  const handleSaveDraft = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      const payload = {
+        ...formData,
+        annual_revenue: parseFloat(formData.annual_revenue),
+        ebitda: parseFloat(formData.ebitda),
+        asking_price: parseFloat(formData.asking_price),
+        financial_data: formData.financial_data.map(item => ({
+          ...item,
+          revenue: parseFloat(item.revenue) || 0,
+          profit_loss: parseFloat(item.profit_loss) || 0,
+          ebitda: parseFloat(item.ebitda) || 0,
+          assets: parseFloat(item.assets) || 0,
+          liabilities: parseFloat(item.liabilities) || 0,
+          cash_flow: parseFloat(item.cash_flow) || 0
+        })),
+        status: 'draft'
+      };
+
+      const response = await axios.post(`${API}/businesses`, payload);
+      onSuccess(response.data, 'draft');
+    } catch (error) {
+      setError('Error saving draft: ' + (error.response?.data?.detail || error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePublish = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      const payload = {
+        ...formData,
+        annual_revenue: parseFloat(formData.annual_revenue),
+        ebitda: parseFloat(formData.ebitda),
+        asking_price: parseFloat(formData.asking_price),
+        financial_data: formData.financial_data.map(item => ({
+          ...item,
+          revenue: parseFloat(item.revenue) || 0,
+          profit_loss: parseFloat(item.profit_loss) || 0,
+          ebitda: parseFloat(item.ebitda) || 0,
+          assets: parseFloat(item.assets) || 0,
+          liabilities: parseFloat(item.liabilities) || 0,
+          cash_flow: parseFloat(item.cash_flow) || 0
+        })),
+        status: 'pending_payment'
+      };
+
+      const response = await axios.post(`${API}/businesses`, payload);
+      onSuccess(response.data, 'publish');
+    } catch (error) {
+      setError('Error creating listing: ' + (error.response?.data?.detail || error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderStep = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Business Information</h3>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Business Title *</label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => handleInputChange('title', e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter your business title"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                rows="4"
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Describe your business..."
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Industry *</label>
+                <select
+                  value={formData.industry}
+                  onChange={(e) => handleInputChange('industry', e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select Industry</option>
+                  {industries.map(industry => (
+                    <option key={industry.value} value={industry.value}>{industry.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Region *</label>
+                <select
+                  value={formData.region}
+                  onChange={(e) => handleInputChange('region', e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select Region</option>
+                  {regions.map(region => (
+                    <option key={region.value} value={region.value}>{region.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        );
+      case 2:
+        return (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Financial Information</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Annual Revenue (USD) *</label>
+                <input
+                  type="number"
+                  value={formData.annual_revenue}
+                  onChange={(e) => handleInputChange('annual_revenue', e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="1000000"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">EBITDA (USD) *</label>
+                <input
+                  type="number"
+                  value={formData.ebitda}
+                  onChange={(e) => handleInputChange('ebitda', e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="200000"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Asking Price (USD) *</label>
+                <input
+                  type="number"
+                  value={formData.asking_price}
+                  onChange={(e) => handleInputChange('asking_price', e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="1500000"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Risk Grade *</label>
+                <select
+                  value={formData.risk_grade}
+                  onChange={(e) => handleInputChange('risk_grade', e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select Risk Grade</option>
+                  {riskGrades.map(grade => (
+                    <option key={grade.value} value={grade.value}>{grade.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        );
+      case 3:
+        return (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Seller Information</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Your Name *</label>
+                <input
+                  type="text"
+                  value={formData.seller_name}
+                  onChange={(e) => handleInputChange('seller_name', e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="John Doe"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
+                <input
+                  type="email"
+                  value={formData.seller_email}
+                  onChange={(e) => handleInputChange('seller_email', e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="john@example.com"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Sale *</label>
+              <textarea
+                value={formData.reason_for_sale}
+                onChange={(e) => handleInputChange('reason_for_sale', e.target.value)}
+                rows="3"
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Why are you selling this business?"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Growth Opportunities</label>
+              <textarea
+                value={formData.growth_opportunities}
+                onChange={(e) => handleInputChange('growth_opportunities', e.target.value)}
+                rows="3"
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="What are the potential growth opportunities?"
+              />
+            </div>
+          </div>
+        );
+      case 4:
+        return (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">3-Year Financial Data</h3>
+            {formData.financial_data.map((yearData, index) => (
+              <div key={index} className="border border-gray-200 rounded-lg p-4">
+                <h4 className="font-semibold mb-3">Year {yearData.year}</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Revenue *</label>
+                    <input
+                      type="number"
+                      value={yearData.revenue}
+                      onChange={(e) => handleFinancialDataChange(index, 'revenue', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Profit/Loss *</label>
+                    <input
+                      type="number"
+                      value={yearData.profit_loss}
+                      onChange={(e) => handleFinancialDataChange(index, 'profit_loss', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">EBITDA *</label>
+                    <input
+                      type="number"
+                      value={yearData.ebitda}
+                      onChange={(e) => handleFinancialDataChange(index, 'ebitda', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Cash Flow</label>
+                    <input
+                      type="number"
+                      value={yearData.cash_flow}
+                      onChange={(e) => handleFinancialDataChange(index, 'cash_flow', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      case 5:
+        return (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Key Metrics</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Number of Employees</label>
+                <input
+                  type="number"
+                  value={formData.key_metrics.employees || ''}
+                  onChange={(e) => handleKeyMetricChange('employees', e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Years in Business</label>
+                <input
+                  type="number"
+                  value={formData.key_metrics.years_in_business || ''}
+                  onChange={(e) => handleKeyMetricChange('years_in_business', e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Locations</label>
+                <input
+                  type="number"
+                  value={formData.key_metrics.locations || ''}
+                  onChange={(e) => handleKeyMetricChange('locations', e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Additional Info</label>
+                <input
+                  type="text"
+                  value={formData.key_metrics.additional_info || ''}
+                  onChange={(e) => handleKeyMetricChange('additional_info', e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Any additional key metrics"
+                />
+              </div>
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">List Your Business</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-700 text-2xl"
+            >
+              ×
+            </button>
+          </div>
+          
+          {/* Progress Bar */}
+          <div className="mb-6">
+            <div className="flex justify-between mb-2">
+              {[1, 2, 3, 4, 5].map((step) => (
+                <div
+                  key={step}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                    step <= currentStep
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 text-gray-600'
+                  }`}
+                >
+                  {step}
+                </div>
+              ))}
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${(currentStep / 5) * 100}%` }}
+              ></div>
+            </div>
+          </div>
+          
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+              {error}
+            </div>
+          )}
+          
+          {renderStep()}
+          
+          <div className="flex justify-between mt-8">
+            <button
+              onClick={handlePrevious}
+              disabled={currentStep === 1}
+              className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            
+            <div className="flex space-x-4">
+              {currentStep === 5 ? (
+                <>
+                  <button
+                    onClick={handleSaveDraft}
+                    disabled={loading}
+                    className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    {loading ? 'Saving...' : 'Save Draft'}
+                  </button>
+                  <button
+                    onClick={handlePublish}
+                    disabled={loading}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {loading ? 'Publishing...' : 'Publish Listing'}
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={handleNext}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  Next
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Payment Modal Component
+const PaymentModal = ({ business, onClose, onPaymentSuccess }) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('card');
+
+  const handlePayment = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      const response = await axios.post(`${API}/businesses/${business.id}/payment`, {
+        business_id: business.id,
+        payment_type: 'listing_fee',
+        amount: 99.0
+      });
+      
+      if (response.data.status === 'success') {
+        onPaymentSuccess(response.data);
+      } else {
+        setError(response.data.message || 'Payment failed');
+      }
+    } catch (error) {
+      setError('Payment failed: ' + (error.response?.data?.detail || error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-md w-full">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold text-gray-900">Complete Payment</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-700 text-xl"
+            >
+              ×
+            </button>
+          </div>
+          
+          <div className="mb-6">
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="font-semibold mb-2">Listing Fee</h3>
+              <p className="text-sm text-gray-600 mb-2">
+                Business: {business.title}
+              </p>
+              <div className="flex justify-between items-center">
+                <span className="text-lg font-semibold">Total:</span>
+                <span className="text-lg font-bold text-blue-600">$99.00</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
+            <div className="space-y-2">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  value="card"
+                  checked={paymentMethod === 'card'}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="mr-2"
+                />
+                Credit/Debit Card
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  value="bank"
+                  checked={paymentMethod === 'bank'}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="mr-2"
+                />
+                Bank Transfer
+              </label>
+            </div>
+          </div>
+          
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+              {error}
+            </div>
+          )}
+          
+          <div className="flex space-x-4">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handlePayment}
+              disabled={loading}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? 'Processing...' : 'Pay $99.00'}
+            </button>
+          </div>
+          
+          <div className="mt-4 text-xs text-gray-500 text-center">
+            <p>This is a mock payment system for demonstration purposes.</p>
+            <p>90% success rate simulation for testing.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Business Card Component
 const BusinessCard = ({ business, onClick }) => {
   return (
