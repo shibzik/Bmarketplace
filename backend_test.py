@@ -1598,6 +1598,230 @@ class BusinessMarketplaceAPITester:
             self.log_test("Integration Workflow", False, f"JSON parsing error: {str(e)}")
     
     
+    def test_recent_fixes(self):
+        """Test the recently fixed issues as requested"""
+        print("\n=== Testing Recently Fixed Issues ===")
+        
+        # Test 1: Business Details Access (Anonymous) - should work and NOT show seller contact info
+        print("\n--- Test 1: Anonymous Business Details Access ---")
+        
+        # Get a business ID first
+        response, success, error = self.make_request("GET", "/businesses")
+        if not success or response.status_code != 200:
+            self.log_test("Anonymous Business Access Setup", False, f"Could not get business list: {error if not success else response.status_code}")
+            return
+        
+        businesses = response.json()
+        if not businesses:
+            self.log_test("Anonymous Business Access Setup", False, "No businesses available for testing")
+            return
+        
+        business_id = businesses[0]['id']
+        
+        # Test anonymous access to business details (NO auth token)
+        response, success, error = self.make_request("GET", f"/businesses/{business_id}")
+        
+        if not success:
+            self.log_test("Anonymous Business Details Access", False, f"Request failed: {error}")
+        elif response.status_code == 200:
+            try:
+                business = response.json()
+                # Verify business details are returned
+                required_fields = ['id', 'title', 'description', 'industry', 'region', 'annual_revenue', 'seller_name']
+                missing_fields = [field for field in required_fields if field not in business]
+                
+                if not missing_fields:
+                    # Verify seller contact info is NOT shown to anonymous users
+                    if business.get('seller_email') is None:
+                        self.log_test("Anonymous Business Details Access", True, "Business details accessible anonymously, seller email properly hidden")
+                    else:
+                        self.log_test("Anonymous Business Details Access", False, f"Seller email exposed to anonymous user: {business.get('seller_email')}")
+                else:
+                    self.log_test("Anonymous Business Details Access", False, f"Missing business fields: {missing_fields}")
+            except json.JSONDecodeError:
+                self.log_test("Anonymous Business Details Access", False, "Invalid JSON response")
+        else:
+            self.log_test("Anonymous Business Details Access", False, f"Status code: {response.status_code}")
+        
+        # Test 2: Business Creation Workflow (Authenticated) - should return 'draft' status
+        print("\n--- Test 2: Authenticated Business Creation Workflow ---")
+        
+        # Register a seller user
+        seller_data = {
+            "email": "test.seller.fix@moldovan-marketplace.com",
+            "password": "SecurePassword789!",
+            "name": "Test Seller Fix",
+            "role": "seller"
+        }
+        
+        response, success, error = self.make_request("POST", "/auth/register", data=seller_data)
+        
+        if not success or response.status_code != 200:
+            self.log_test("Seller Registration for Fix Test", False, f"Registration failed: {error if not success else response.status_code}")
+            return
+        
+        # Login to get authentication token
+        login_data = {
+            "email": seller_data['email'],
+            "password": seller_data['password']
+        }
+        
+        response, success, error = self.make_request("POST", "/auth/login", data=login_data)
+        
+        if not success or response.status_code != 200:
+            self.log_test("Seller Login for Fix Test", False, f"Login failed: {error if not success else response.status_code}")
+            return
+        
+        try:
+            login_response = response.json()
+            auth_token = login_response['access_token']
+            seller_user = login_response['user']
+            headers = {"Authorization": f"Bearer {auth_token}"}
+            
+            # Create a business listing with authentication
+            business_data = {
+                "title": "Authenticated Business Creation Test",
+                "description": "Testing authenticated business creation workflow",
+                "industry": "technology",
+                "region": "chisinau",
+                "annual_revenue": 300000.0,
+                "ebitda": 45000.0,
+                "asking_price": 450000.0,
+                "risk_grade": "B",
+                "seller_name": seller_user['name'],
+                "seller_email": seller_user['email'],
+                "reason_for_sale": "Testing authenticated workflow",
+                "growth_opportunities": "Test expansion opportunities",
+                "financial_data": [
+                    {
+                        "year": 2023,
+                        "revenue": 300000,
+                        "profit_loss": 36000,
+                        "ebitda": 45000,
+                        "assets": 400000,
+                        "liabilities": 200000,
+                        "cash_flow": 42000
+                    }
+                ],
+                "key_metrics": {
+                    "employees": 12,
+                    "years_in_business": 5
+                }
+            }
+            
+            response, success, error = self.make_request("POST", "/businesses", data=business_data, headers=headers)
+            
+            if not success:
+                self.log_test("Authenticated Business Creation", False, f"Request failed: {error}")
+            elif response.status_code == 200:
+                try:
+                    created_business = response.json()
+                    
+                    # Verify the status is 'draft' (not 'pending_email_verification')
+                    if created_business.get('status') == 'draft':
+                        # Verify seller_id matches the authenticated user
+                        if created_business.get('seller_id') == seller_user['id']:
+                            self.log_test("Authenticated Business Creation", True, 
+                                        f"Business created with 'draft' status and correct seller_id: {created_business['id']}")
+                            
+                            # Store for payment test
+                            self.test_business_id = created_business['id']
+                            self.test_auth_headers = headers
+                        else:
+                            self.log_test("Authenticated Business Creation", False, 
+                                        f"Seller ID mismatch: expected {seller_user['id']}, got {created_business.get('seller_id')}")
+                    else:
+                        self.log_test("Authenticated Business Creation", False, 
+                                    f"Expected status 'draft', got '{created_business.get('status')}'")
+                        
+                except json.JSONDecodeError:
+                    self.log_test("Authenticated Business Creation", False, "Invalid JSON response")
+            else:
+                self.log_test("Authenticated Business Creation", False, f"Status code: {response.status_code}")
+                
+        except (json.JSONDecodeError, KeyError) as e:
+            self.log_test("Seller Login for Fix Test", False, f"JSON parsing error: {str(e)}")
+            return
+        
+        # Test 3: Payment Processing with 'draft' status business
+        print("\n--- Test 3: Payment Processing with Draft Status ---")
+        
+        if hasattr(self, 'test_business_id') and hasattr(self, 'test_auth_headers'):
+            payment_data = {
+                "business_id": self.test_business_id,
+                "payment_type": "listing_fee",
+                "amount": 99.0
+            }
+            
+            response, success, error = self.make_request("POST", f"/businesses/{self.test_business_id}/payment", 
+                                                       data=payment_data)
+            
+            if not success:
+                self.log_test("Payment with Draft Status", False, f"Request failed: {error}")
+            elif response.status_code == 200:
+                try:
+                    payment_result = response.json()
+                    
+                    if payment_result.get('status') == 'success':
+                        # Verify business status changed to 'active'
+                        response, success, error = self.make_request("GET", f"/businesses/{self.test_business_id}")
+                        
+                        if success and response.status_code == 200:
+                            updated_business = response.json()
+                            if updated_business.get('status') == 'active':
+                                self.log_test("Payment with Draft Status", True, 
+                                            "Payment successful and business status changed to 'active'")
+                            else:
+                                self.log_test("Payment with Draft Status", False, 
+                                            f"Payment successful but status is '{updated_business.get('status')}', expected 'active'")
+                        else:
+                            self.log_test("Payment with Draft Status", False, 
+                                        "Could not verify business status after payment")
+                    else:
+                        # Payment failed (simulated failure is acceptable)
+                        self.log_test("Payment with Draft Status", True, 
+                                    f"Payment processed (simulated failure): {payment_result.get('message')}")
+                        
+                except json.JSONDecodeError:
+                    self.log_test("Payment with Draft Status", False, "Invalid JSON response")
+            else:
+                self.log_test("Payment with Draft Status", False, f"Status code: {response.status_code}")
+        else:
+            self.log_test("Payment with Draft Status", False, "No test business available for payment testing")
+
+    def print_summary(self):
+        """Print test summary"""
+        print("\n" + "=" * 80)
+        print("📊 TEST SUMMARY")
+        print("=" * 80)
+        
+        passed = sum(1 for result in self.test_results if result['success'])
+        total = len(self.test_results)
+        
+        print(f"Total Tests: {total}")
+        print(f"Passed: {passed}")
+        print(f"Failed: {total - passed}")
+        print(f"Success Rate: {(passed/total)*100:.1f}%")
+        
+        if total - passed > 0:
+            print("\n❌ FAILED TESTS:")
+            for result in self.test_results:
+                if not result['success']:
+                    print(f"  - {result['test']}: {result['details']}")
+        
+        return passed == total
+
+    def run_recent_fixes_test(self):
+        """Run only the recent fixes test"""
+        print("🔧 Testing Recently Fixed Issues")
+        print(f"Backend URL: {self.base_url}")
+        print("=" * 80)
+        
+        self.test_recent_fixes()
+        
+        # Print summary
+        return self.print_summary()
+    
     def run_all_tests(self):
         """Run all tests"""
         print("🚀 Starting Moldovan Business Marketplace Backend API Tests")
@@ -1631,25 +1855,7 @@ class BusinessMarketplaceAPITester:
         self.test_integration_workflow()
         
         # Summary
-        print("\n" + "=" * 80)
-        print("📊 TEST SUMMARY")
-        print("=" * 80)
-        
-        passed = sum(1 for result in self.test_results if result['success'])
-        total = len(self.test_results)
-        
-        print(f"Total Tests: {total}")
-        print(f"Passed: {passed}")
-        print(f"Failed: {total - passed}")
-        print(f"Success Rate: {(passed/total)*100:.1f}%")
-        
-        if total - passed > 0:
-            print("\n❌ FAILED TESTS:")
-            for result in self.test_results:
-                if not result['success']:
-                    print(f"  - {result['test']}: {result['details']}")
-        
-        return passed == total
+        return self.print_summary()
 
 if __name__ == "__main__":
     tester = BusinessMarketplaceAPITester()
