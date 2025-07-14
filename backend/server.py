@@ -441,7 +441,6 @@ async def create_business(business: BusinessListingCreate):
     business_dict = business.dict()
     business_dict["id"] = str(uuid.uuid4())
     business_dict["seller_id"] = str(uuid.uuid4())  # In real app, this would be the authenticated user ID
-    business_dict["status"] = BusinessStatus.ACTIVE
     business_dict["created_at"] = datetime.utcnow()
     business_dict["updated_at"] = datetime.utcnow()
     business_dict["views"] = 0
@@ -450,6 +449,67 @@ async def create_business(business: BusinessListingCreate):
     
     await db.business_listings.insert_one(business_dict)
     return BusinessListingResponse(**business_dict)
+
+@api_router.put("/businesses/{business_id}", response_model=BusinessListingResponse)
+async def update_business(business_id: str, business: BusinessListingUpdate):
+    # Check if business exists
+    existing_business = await db.business_listings.find_one({"id": business_id})
+    if not existing_business:
+        raise HTTPException(status_code=404, detail="Business not found")
+    
+    # Update only provided fields
+    update_dict = {k: v for k, v in business.dict().items() if v is not None}
+    update_dict["updated_at"] = datetime.utcnow()
+    
+    await db.business_listings.update_one(
+        {"id": business_id},
+        {"$set": update_dict}
+    )
+    
+    updated_business = await db.business_listings.find_one({"id": business_id})
+    return BusinessListingResponse(**updated_business)
+
+@api_router.get("/businesses/seller/{seller_id}")
+async def get_seller_businesses(seller_id: str):
+    businesses = await db.business_listings.find({"seller_id": seller_id}).to_list(100)
+    return [BusinessListingResponse(**business) for business in businesses]
+
+@api_router.post("/businesses/{business_id}/payment", response_model=PaymentResponse)
+async def process_payment(business_id: str, payment: PaymentRequest):
+    # Check if business exists
+    business = await db.business_listings.find_one({"id": business_id})
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+    
+    # Mock payment processing
+    payment_id = str(uuid.uuid4())
+    
+    # Simulate payment success (90% success rate for demo)
+    import random
+    success = random.random() < 0.9
+    
+    if success:
+        # Update business status to active
+        await db.business_listings.update_one(
+            {"id": business_id},
+            {"$set": {"status": BusinessStatus.ACTIVE, "updated_at": datetime.utcnow()}}
+        )
+        
+        return PaymentResponse(
+            payment_id=payment_id,
+            status="success",
+            business_id=business_id,
+            amount=payment.amount,
+            message="Payment successful! Your business listing is now active."
+        )
+    else:
+        return PaymentResponse(
+            payment_id=payment_id,
+            status="failed",
+            business_id=business_id,
+            amount=payment.amount,
+            message="Payment failed. Please try again."
+        )
 
 @api_router.get("/industries")
 async def get_industries():
