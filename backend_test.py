@@ -554,6 +554,524 @@ class BusinessMarketplaceAPITester:
         else:
             self.log_test("Combined Filters (Industry + Region)", False, f"Request failed: {error if not success else response.status_code}")
     
+    def test_business_creation(self):
+        """Test business creation API"""
+        print("\n=== Testing Business Creation API ===")
+        
+        # Test 1: Create business with full data
+        full_business_data = {
+            "title": "Test Moldovan Bakery Chain",
+            "description": "Traditional bakery chain with 3 locations in Chisinau serving fresh bread and pastries daily",
+            "industry": "food_service",
+            "region": "chisinau",
+            "annual_revenue": 450000.0,
+            "ebitda": 67500.0,
+            "asking_price": 650000.0,
+            "risk_grade": "B",
+            "seller_name": "Ion Popescu",
+            "seller_email": "ion.popescu@example.com",
+            "reason_for_sale": "Retirement after 20 years",
+            "growth_opportunities": "Expand to other cities, add online ordering, catering services",
+            "financial_data": [
+                {
+                    "year": 2023,
+                    "revenue": 450000,
+                    "profit_loss": 54000,
+                    "ebitda": 67500,
+                    "assets": 580000,
+                    "liabilities": 280000,
+                    "cash_flow": 62000
+                },
+                {
+                    "year": 2022,
+                    "revenue": 420000,
+                    "profit_loss": 50400,
+                    "ebitda": 63000,
+                    "assets": 550000,
+                    "liabilities": 300000,
+                    "cash_flow": 58000
+                }
+            ],
+            "key_metrics": {
+                "employees": 15,
+                "years_in_business": 20,
+                "locations": 3,
+                "daily_customers": 200
+            },
+            "status": "draft"
+        }
+        
+        response, success, error = self.make_request("POST", "/businesses", data=full_business_data)
+        
+        if not success:
+            self.log_test("Business Creation (Full Data)", False, f"Request failed: {error}")
+        elif response.status_code == 200:
+            try:
+                created_business = response.json()
+                
+                # Verify required fields are present
+                required_fields = ['id', 'title', 'description', 'industry', 'region', 'annual_revenue', 
+                                 'ebitda', 'asking_price', 'risk_grade', 'status', 'seller_name', 
+                                 'seller_email', 'created_at', 'updated_at', 'views', 'inquiries']
+                missing_fields = [field for field in required_fields if field not in created_business]
+                
+                if not missing_fields:
+                    # Verify status is draft
+                    if created_business.get('status') == 'draft':
+                        # Verify auto-generated fields
+                        if (created_business.get('views') == 0 and 
+                            created_business.get('inquiries') == 0 and
+                            created_business.get('id') and
+                            created_business.get('seller_id')):
+                            
+                            self.created_business_ids.append(created_business['id'])
+                            self.log_test("Business Creation (Full Data)", True, 
+                                        f"Created business with ID: {created_business['id']}, Status: {created_business['status']}")
+                        else:
+                            self.log_test("Business Creation (Full Data)", False, "Auto-generated fields not properly set")
+                    else:
+                        self.log_test("Business Creation (Full Data)", False, f"Expected status 'draft', got '{created_business.get('status')}'")
+                else:
+                    self.log_test("Business Creation (Full Data)", False, f"Missing fields: {missing_fields}")
+                    
+            except json.JSONDecodeError:
+                self.log_test("Business Creation (Full Data)", False, "Invalid JSON response")
+        else:
+            self.log_test("Business Creation (Full Data)", False, f"Status code: {response.status_code}")
+        
+        # Test 2: Create business with minimal required data
+        minimal_business_data = {
+            "title": "Test Tech Startup",
+            "description": "Innovative software development company",
+            "industry": "technology",
+            "region": "balti",
+            "annual_revenue": 150000.0,
+            "ebitda": 45000.0,
+            "asking_price": 300000.0,
+            "risk_grade": "A",
+            "seller_name": "Maria Ionescu",
+            "seller_email": "maria.ionescu@example.com",
+            "reason_for_sale": "New opportunity abroad",
+            "growth_opportunities": "Scale internationally",
+            "financial_data": [
+                {
+                    "year": 2023,
+                    "revenue": 150000,
+                    "profit_loss": 36000,
+                    "ebitda": 45000,
+                    "assets": 200000,
+                    "liabilities": 80000,
+                    "cash_flow": 42000
+                }
+            ],
+            "key_metrics": {
+                "employees": 8,
+                "years_in_business": 3
+            }
+        }
+        
+        response, success, error = self.make_request("POST", "/businesses", data=minimal_business_data)
+        
+        if success and response.status_code == 200:
+            try:
+                created_business = response.json()
+                if created_business.get('status') == 'draft' and created_business.get('id'):
+                    self.created_business_ids.append(created_business['id'])
+                    self.log_test("Business Creation (Minimal Data)", True, 
+                                f"Created business with minimal data, ID: {created_business['id']}")
+                else:
+                    self.log_test("Business Creation (Minimal Data)", False, "Business not created properly")
+            except json.JSONDecodeError:
+                self.log_test("Business Creation (Minimal Data)", False, "Invalid JSON response")
+        else:
+            self.log_test("Business Creation (Minimal Data)", False, f"Request failed: {error if not success else response.status_code}")
+        
+        # Test 3: Test validation for required fields (missing title)
+        invalid_business_data = {
+            "description": "Test business without title",
+            "industry": "retail",
+            "region": "chisinau",
+            "annual_revenue": 100000.0,
+            "ebitda": 15000.0,
+            "asking_price": 200000.0,
+            "risk_grade": "C",
+            "seller_name": "Test Seller",
+            "seller_email": "test@example.com",
+            "reason_for_sale": "Test",
+            "growth_opportunities": "Test",
+            "financial_data": [],
+            "key_metrics": {}
+        }
+        
+        response, success, error = self.make_request("POST", "/businesses", data=invalid_business_data)
+        
+        if success and response.status_code == 422:  # Validation error expected
+            self.log_test("Business Creation Validation", True, "Properly rejected business without required title field")
+        elif success and response.status_code == 200:
+            self.log_test("Business Creation Validation", False, "Should have rejected business without title")
+        else:
+            self.log_test("Business Creation Validation", False, f"Unexpected response: {error if not success else response.status_code}")
+    
+    def test_business_update(self):
+        """Test business update API"""
+        print("\n=== Testing Business Update API ===")
+        
+        if not self.created_business_ids:
+            self.log_test("Business Update", False, "No created businesses available for testing")
+            return
+        
+        business_id = self.created_business_ids[0]
+        
+        # Test 1: Update business with partial data
+        update_data = {
+            "title": "Updated Moldovan Bakery Chain - Premium",
+            "asking_price": 750000.0,
+            "growth_opportunities": "Expand to other cities, add online ordering, catering services, franchise opportunities",
+            "status": "pending_payment"
+        }
+        
+        response, success, error = self.make_request("PUT", f"/businesses/{business_id}", data=update_data)
+        
+        if not success:
+            self.log_test("Business Update (Partial Data)", False, f"Request failed: {error}")
+        elif response.status_code == 200:
+            try:
+                updated_business = response.json()
+                
+                # Verify updates were applied
+                if (updated_business.get('title') == update_data['title'] and
+                    updated_business.get('asking_price') == update_data['asking_price'] and
+                    updated_business.get('status') == update_data['status']):
+                    
+                    # Verify updated_at was changed
+                    if updated_business.get('updated_at'):
+                        self.log_test("Business Update (Partial Data)", True, 
+                                    f"Successfully updated business, new status: {updated_business['status']}")
+                    else:
+                        self.log_test("Business Update (Partial Data)", False, "updated_at field not set")
+                else:
+                    self.log_test("Business Update (Partial Data)", False, "Updates not properly applied")
+                    
+            except json.JSONDecodeError:
+                self.log_test("Business Update (Partial Data)", False, "Invalid JSON response")
+        else:
+            self.log_test("Business Update (Partial Data)", False, f"Status code: {response.status_code}")
+        
+        # Test 2: Update financial data and key metrics
+        financial_update = {
+            "financial_data": [
+                {
+                    "year": 2023,
+                    "revenue": 480000,
+                    "profit_loss": 57600,
+                    "ebitda": 72000,
+                    "assets": 620000,
+                    "liabilities": 260000,
+                    "cash_flow": 66000
+                }
+            ],
+            "key_metrics": {
+                "employees": 18,
+                "years_in_business": 20,
+                "locations": 4,
+                "daily_customers": 250,
+                "new_metric": "premium_products"
+            }
+        }
+        
+        response, success, error = self.make_request("PUT", f"/businesses/{business_id}", data=financial_update)
+        
+        if success and response.status_code == 200:
+            try:
+                updated_business = response.json()
+                financial_data = updated_business.get('financial_data', [])
+                key_metrics = updated_business.get('key_metrics', {})
+                
+                if (len(financial_data) > 0 and 
+                    financial_data[0].get('revenue') == 480000 and
+                    key_metrics.get('employees') == 18 and
+                    key_metrics.get('new_metric') == 'premium_products'):
+                    
+                    self.log_test("Business Update (Financial Data)", True, "Successfully updated financial data and metrics")
+                else:
+                    self.log_test("Business Update (Financial Data)", False, "Financial data or metrics not updated properly")
+            except json.JSONDecodeError:
+                self.log_test("Business Update (Financial Data)", False, "Invalid JSON response")
+        else:
+            self.log_test("Business Update (Financial Data)", False, f"Request failed: {error if not success else response.status_code}")
+        
+        # Test 3: Test 404 for non-existent business
+        fake_id = "non-existent-business-id"
+        response, success, error = self.make_request("PUT", f"/businesses/{fake_id}", data={"title": "Test"})
+        
+        if success and response.status_code == 404:
+            self.log_test("Business Update (404 Test)", True, "Properly returned 404 for non-existent business")
+        else:
+            self.log_test("Business Update (404 Test)", False, f"Expected 404, got: {response.status_code if success else error}")
+    
+    def test_seller_businesses(self):
+        """Test get seller's businesses API"""
+        print("\n=== Testing Seller Businesses API ===")
+        
+        if not self.created_business_ids:
+            self.log_test("Seller Businesses", False, "No created businesses available for testing")
+            return
+        
+        # Get the seller_id from one of our created businesses
+        business_id = self.created_business_ids[0]
+        response, success, error = self.make_request("GET", f"/businesses/{business_id}")
+        
+        if not success or response.status_code != 200:
+            self.log_test("Seller Businesses", False, "Could not retrieve business to get seller_id")
+            return
+        
+        try:
+            business = response.json()
+            seller_id = business.get('seller_id')
+            
+            if not seller_id:
+                self.log_test("Seller Businesses", False, "No seller_id found in business")
+                return
+            
+            # Test getting seller's businesses
+            response, success, error = self.make_request("GET", f"/businesses/seller/{seller_id}")
+            
+            if not success:
+                self.log_test("Seller Businesses", False, f"Request failed: {error}")
+            elif response.status_code == 200:
+                try:
+                    seller_businesses = response.json()
+                    
+                    if isinstance(seller_businesses, list):
+                        # Verify all businesses belong to the seller
+                        correct_seller = all(b.get('seller_id') == seller_id for b in seller_businesses)
+                        
+                        if correct_seller:
+                            # Check if our created businesses are in the list
+                            found_businesses = [b['id'] for b in seller_businesses if b['id'] in self.created_business_ids]
+                            
+                            if found_businesses:
+                                self.log_test("Seller Businesses", True, 
+                                            f"Retrieved {len(seller_businesses)} businesses for seller, found {len(found_businesses)} created businesses")
+                            else:
+                                self.log_test("Seller Businesses", False, "Created businesses not found in seller's list")
+                        else:
+                            self.log_test("Seller Businesses", False, "Some businesses don't belong to the seller")
+                    else:
+                        self.log_test("Seller Businesses", False, "Response is not a list")
+                        
+                except json.JSONDecodeError:
+                    self.log_test("Seller Businesses", False, "Invalid JSON response")
+            else:
+                self.log_test("Seller Businesses", False, f"Status code: {response.status_code}")
+                
+        except json.JSONDecodeError:
+            self.log_test("Seller Businesses", False, "Could not parse business response")
+    
+    def test_payment_processing(self):
+        """Test payment processing API"""
+        print("\n=== Testing Payment Processing API ===")
+        
+        if not self.created_business_ids:
+            self.log_test("Payment Processing", False, "No created businesses available for testing")
+            return
+        
+        business_id = self.created_business_ids[0]
+        
+        # Test 1: Process payment for valid business
+        payment_data = {
+            "business_id": business_id,
+            "payment_type": "listing_fee",
+            "amount": 99.0
+        }
+        
+        # Try payment multiple times to test the 90% success rate
+        payment_attempts = []
+        for attempt in range(5):
+            response, success, error = self.make_request("POST", f"/businesses/{business_id}/payment", data=payment_data)
+            
+            if success and response.status_code == 200:
+                try:
+                    payment_result = response.json()
+                    payment_attempts.append(payment_result.get('status'))
+                    
+                    # Verify payment response structure
+                    required_fields = ['payment_id', 'status', 'business_id', 'amount', 'message']
+                    missing_fields = [field for field in required_fields if field not in payment_result]
+                    
+                    if not missing_fields:
+                        if payment_result.get('status') == 'success':
+                            # Verify business status changed to active
+                            business_response, business_success, _ = self.make_request("GET", f"/businesses/{business_id}")
+                            if business_success and business_response.status_code == 200:
+                                business = business_response.json()
+                                if business.get('status') == 'active':
+                                    self.log_test(f"Payment Processing (Attempt {attempt + 1})", True, 
+                                                f"Payment successful, business status changed to active")
+                                    break
+                                else:
+                                    self.log_test(f"Payment Processing (Attempt {attempt + 1})", False, 
+                                                f"Payment successful but business status is {business.get('status')}")
+                            else:
+                                self.log_test(f"Payment Processing (Attempt {attempt + 1})", False, 
+                                            "Could not verify business status after payment")
+                        else:
+                            self.log_test(f"Payment Processing (Attempt {attempt + 1})", True, 
+                                        f"Payment failed as expected (simulated failure): {payment_result.get('message')}")
+                    else:
+                        self.log_test(f"Payment Processing (Attempt {attempt + 1})", False, 
+                                    f"Missing payment response fields: {missing_fields}")
+                        
+                except json.JSONDecodeError:
+                    self.log_test(f"Payment Processing (Attempt {attempt + 1})", False, "Invalid JSON response")
+            else:
+                self.log_test(f"Payment Processing (Attempt {attempt + 1})", False, 
+                            f"Request failed: {error if not success else response.status_code}")
+        
+        # Analyze success rate
+        successful_payments = payment_attempts.count('success')
+        total_attempts = len(payment_attempts)
+        
+        if total_attempts > 0:
+            success_rate = (successful_payments / total_attempts) * 100
+            if 70 <= success_rate <= 100:  # Allow some variance in the 90% simulation
+                self.log_test("Payment Success Rate Simulation", True, 
+                            f"Success rate: {success_rate:.1f}% ({successful_payments}/{total_attempts})")
+            else:
+                self.log_test("Payment Success Rate Simulation", False, 
+                            f"Unexpected success rate: {success_rate:.1f}% (expected ~90%)")
+        
+        # Test 2: Test payment for non-existent business
+        fake_business_id = "non-existent-business-id"
+        response, success, error = self.make_request("POST", f"/businesses/{fake_business_id}/payment", data=payment_data)
+        
+        if success and response.status_code == 404:
+            self.log_test("Payment Processing (404 Test)", True, "Properly returned 404 for non-existent business")
+        else:
+            self.log_test("Payment Processing (404 Test)", False, 
+                        f"Expected 404, got: {response.status_code if success else error}")
+    
+    def test_integration_workflow(self):
+        """Test complete integration workflow: create → update → pay → verify active"""
+        print("\n=== Testing Integration Workflow ===")
+        
+        # Step 1: Create a new business
+        workflow_business_data = {
+            "title": "Integration Test Restaurant",
+            "description": "Test restaurant for integration workflow",
+            "industry": "food_service",
+            "region": "chisinau",
+            "annual_revenue": 300000.0,
+            "ebitda": 45000.0,
+            "asking_price": 450000.0,
+            "risk_grade": "B",
+            "seller_name": "Test Workflow Seller",
+            "seller_email": "workflow@example.com",
+            "reason_for_sale": "Integration testing",
+            "growth_opportunities": "Test expansion",
+            "financial_data": [
+                {
+                    "year": 2023,
+                    "revenue": 300000,
+                    "profit_loss": 36000,
+                    "ebitda": 45000,
+                    "assets": 400000,
+                    "liabilities": 200000,
+                    "cash_flow": 42000
+                }
+            ],
+            "key_metrics": {
+                "employees": 12,
+                "years_in_business": 5
+            }
+        }
+        
+        response, success, error = self.make_request("POST", "/businesses", data=workflow_business_data)
+        
+        if not success or response.status_code != 200:
+            self.log_test("Integration Workflow", False, f"Step 1 (Create) failed: {error if not success else response.status_code}")
+            return
+        
+        try:
+            created_business = response.json()
+            workflow_business_id = created_business['id']
+            
+            if created_business.get('status') != 'draft':
+                self.log_test("Integration Workflow", False, f"Step 1: Expected draft status, got {created_business.get('status')}")
+                return
+            
+            # Step 2: Update the business
+            update_data = {
+                "title": "Integration Test Restaurant - Updated",
+                "status": "pending_payment"
+            }
+            
+            response, success, error = self.make_request("PUT", f"/businesses/{workflow_business_id}", data=update_data)
+            
+            if not success or response.status_code != 200:
+                self.log_test("Integration Workflow", False, f"Step 2 (Update) failed: {error if not success else response.status_code}")
+                return
+            
+            updated_business = response.json()
+            if updated_business.get('status') != 'pending_payment':
+                self.log_test("Integration Workflow", False, f"Step 2: Expected pending_payment status, got {updated_business.get('status')}")
+                return
+            
+            # Step 3: Process payment (try multiple times until success)
+            payment_data = {
+                "business_id": workflow_business_id,
+                "payment_type": "listing_fee",
+                "amount": 99.0
+            }
+            
+            payment_successful = False
+            for attempt in range(10):  # Try up to 10 times to get a successful payment
+                response, success, error = self.make_request("POST", f"/businesses/{workflow_business_id}/payment", data=payment_data)
+                
+                if success and response.status_code == 200:
+                    payment_result = response.json()
+                    if payment_result.get('status') == 'success':
+                        payment_successful = True
+                        break
+                else:
+                    self.log_test("Integration Workflow", False, f"Step 3 (Payment) failed: {error if not success else response.status_code}")
+                    return
+            
+            if not payment_successful:
+                self.log_test("Integration Workflow", False, "Step 3: Could not achieve successful payment after 10 attempts")
+                return
+            
+            # Step 4: Verify business is now active and appears in public listings
+            response, success, error = self.make_request("GET", f"/businesses/{workflow_business_id}")
+            
+            if not success or response.status_code != 200:
+                self.log_test("Integration Workflow", False, f"Step 4 (Verify) failed: {error if not success else response.status_code}")
+                return
+            
+            final_business = response.json()
+            if final_business.get('status') != 'active':
+                self.log_test("Integration Workflow", False, f"Step 4: Expected active status, got {final_business.get('status')}")
+                return
+            
+            # Step 5: Verify business appears in public listings
+            response, success, error = self.make_request("GET", "/businesses")
+            
+            if success and response.status_code == 200:
+                public_businesses = response.json()
+                found_in_public = any(b.get('id') == workflow_business_id for b in public_businesses)
+                
+                if found_in_public:
+                    self.log_test("Integration Workflow", True, 
+                                "Complete workflow successful: create → update → pay → active → public listing")
+                else:
+                    self.log_test("Integration Workflow", False, "Business not found in public listings after payment")
+            else:
+                self.log_test("Integration Workflow", False, f"Step 5 (Public listing check) failed: {error if not success else response.status_code}")
+                
+        except (json.JSONDecodeError, KeyError) as e:
+            self.log_test("Integration Workflow", False, f"JSON parsing error: {str(e)}")
+    
+    
     def run_all_tests(self):
         """Run all tests"""
         print("🚀 Starting Moldovan Business Marketplace Backend API Tests")
