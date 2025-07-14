@@ -40,6 +40,8 @@ class BusinessMarketplaceAPITester:
                 response = requests.get(url, params=params, timeout=30)
             elif method.upper() == "POST":
                 response = requests.post(url, json=data, timeout=30)
+            elif method.upper() == "PUT":
+                response = requests.put(url, json=data, timeout=30)
             else:
                 return None, False, f"Unsupported method: {method}"
                 
