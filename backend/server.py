@@ -204,7 +204,6 @@ async def get_current_user_optional(credentials: HTTPAuthorizationCredentials = 
     if user is None:
         return None
     return UserResponse(**user)
-    created_at: datetime
 
 class EmailVerificationRequest(BaseModel):
     email: str
