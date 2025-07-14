@@ -143,27 +143,33 @@ backend:
 
   - task: "Business Creation/Update API"
     implemented: true
-    working: "unknown"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "unknown"
         agent: "main"
         comment: "Added POST /businesses and PUT /businesses/{id} endpoints for creating and updating business listings with draft/publish workflow"
+      - working: true
+        agent: "testing"
+        comment: "Comprehensive testing completed successfully. POST /businesses creates businesses with 'draft' status, PUT /businesses/{id} updates existing businesses, all validation working correctly. Minor: API response models don't include seller_email/updated_at but core functionality works perfectly."
 
   - task: "Payment Processing API"
     implemented: true
-    working: "unknown"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "unknown"
         agent: "main"
         comment: "Added mock payment processing API for listing fees with 90% success rate simulation"
+      - working: true
+        agent: "testing"
+        comment: "Payment processing API working perfectly. POST /businesses/{id}/payment processes payments with ~90% success rate simulation, successfully changes business status from draft/pending_payment to 'active' on successful payment, proper error handling for non-existent businesses."
 
 frontend:
   - task: "Business Directory Interface"
