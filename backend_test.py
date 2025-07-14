@@ -9,6 +9,8 @@ import json
 import sys
 from typing import Dict, List, Any
 import time
+import base64
+import io
 
 # Backend URL from environment
 BACKEND_URL = "https://d2d8bc66-4ba6-4364-9176-ddd5853aaddc.preview.emergentagent.com/api"
