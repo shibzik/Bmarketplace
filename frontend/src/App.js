@@ -507,6 +507,9 @@ const FileUploadSection = ({ businessId, documents, onDocumentUploaded, onDocume
     </div>
   );
 };
+
+// Business Listing Form Component
+const BusinessListingForm = ({ onClose, onSuccess }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     title: '',
