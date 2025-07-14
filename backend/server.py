@@ -178,6 +178,7 @@ class BusinessListingCreate(BaseModel):
     growth_opportunities: str
     financial_data: List[FinancialData]
     key_metrics: dict
+    documents: List[BusinessDocument] = []
     status: BusinessStatus = BusinessStatus.DRAFT
 
 class BusinessListingUpdate(BaseModel):
@@ -195,7 +196,14 @@ class BusinessListingUpdate(BaseModel):
     growth_opportunities: Optional[str] = None
     financial_data: Optional[List[FinancialData]] = None
     key_metrics: Optional[dict] = None
+    documents: Optional[List[BusinessDocument]] = None
     status: Optional[BusinessStatus] = None
+
+class DocumentUpload(BaseModel):
+    business_id: str
+    filename: str
+    file_data: str  # Base64 encoded
+    content_type: str
 
 class PaymentRequest(BaseModel):
     business_id: str
@@ -208,6 +216,47 @@ class PaymentResponse(BaseModel):
     business_id: str
     amount: float
     message: str
+
+class BusinessListingResponse(BaseModel):
+    id: str
+    title: str
+    description: str
+    industry: IndustryType
+    region: RegionType
+    annual_revenue: float
+    ebitda: float
+    asking_price: float
+    risk_grade: RiskGrade
+    status: BusinessStatus
+    seller_name: str
+    reason_for_sale: str
+    growth_opportunities: str
+    financial_data: List[FinancialData]
+    key_metrics: dict
+    documents: List[BusinessDocument] = []
+    created_at: datetime
+    views: int
+    inquiries: int
+    featured: bool
+    # Seller contact info only shown to subscribed buyers
+    seller_email: Optional[str] = None
+    seller_phone: Optional[str] = None
+
+class BusinessCardResponse(BaseModel):
+    id: str
+    title: str
+    industry: IndustryType
+    region: RegionType
+    annual_revenue: float
+    ebitda: float
+    asking_price: float
+    risk_grade: RiskGrade
+    status: BusinessStatus
+    created_at: datetime
+    views: int
+    inquiries: int
+    featured: bool
+    documents_count: int = 0
 
 class BusinessListingResponse(BaseModel):
     id: str
