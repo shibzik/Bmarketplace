@@ -225,14 +225,16 @@ frontend:
 
 metadata:
   created_by: "main_agent"
-  version: "1.0"
-  test_sequence: 1
+  version: "1.1"
+  test_sequence: 2
   run_ui: false
 
 test_plan:
   current_focus:
-    - "Business Directory Interface"
-    - "Professional UI Design"
+    - "Business Creation/Update API"
+    - "Payment Processing API"
+    - "Business Listing Form"
+    - "Payment Interface"
   stuck_tasks: []
   test_all: true
   test_priority: "high_first"
