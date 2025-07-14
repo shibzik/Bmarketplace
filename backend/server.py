@@ -56,6 +56,8 @@ class RiskGrade(str, Enum):
     E = "E"  # High risk
 
 class BusinessStatus(str, Enum):
+    DRAFT = "draft"
+    PENDING_PAYMENT = "pending_payment"
     ACTIVE = "active"
     PENDING = "pending"
     SOLD = "sold"
