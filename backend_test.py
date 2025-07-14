@@ -37,16 +37,22 @@ class BusinessMarketplaceAPITester:
             "details": details
         })
         
-    def make_request(self, method: str, endpoint: str, params: Dict = None, data: Dict = None) -> tuple:
+    def make_request(self, method: str, endpoint: str, params: Dict = None, data: Dict = None, headers: Dict = None, files: Dict = None) -> tuple:
         """Make HTTP request and return response and success status"""
         url = f"{self.base_url}{endpoint}"
         try:
+            request_headers = headers or {}
             if method.upper() == "GET":
-                response = requests.get(url, params=params, timeout=30)
+                response = requests.get(url, params=params, headers=request_headers, timeout=30)
             elif method.upper() == "POST":
-                response = requests.post(url, json=data, timeout=30)
+                if files:
+                    response = requests.post(url, data=data, files=files, headers=request_headers, timeout=30)
+                else:
+                    response = requests.post(url, json=data, headers=request_headers, timeout=30)
             elif method.upper() == "PUT":
-                response = requests.put(url, json=data, timeout=30)
+                response = requests.put(url, json=data, headers=request_headers, timeout=30)
+            elif method.upper() == "DELETE":
+                response = requests.delete(url, headers=request_headers, timeout=30)
             else:
                 return None, False, f"Unsupported method: {method}"
                 
