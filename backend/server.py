@@ -308,6 +308,7 @@ class BusinessListingResponse(BaseModel):
     asking_price: float
     risk_grade: RiskGrade
     status: BusinessStatus
+    seller_id: str
     seller_name: str
     reason_for_sale: str
     growth_opportunities: str
