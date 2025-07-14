@@ -1554,12 +1554,23 @@ const BusinessFilters = ({ filters, onFilterChange, industries, regions, riskGra
   );
 };
 
-// Main App Component
+// Main App Component  
 function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+}
+
+// App Content Component
+function AppContent() {
   const [businesses, setBusinesses] = useState([]);
   const [selectedBusiness, setSelectedBusiness] = useState(null);
   const [showListingForm, setShowListingForm] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState('login');
   const [pendingBusiness, setPendingBusiness] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
@@ -1574,6 +1585,7 @@ function App() {
   const [regions, setRegions] = useState([]);
   const [riskGrades, setRiskGrades] = useState([]);
   const [notification, setNotification] = useState(null);
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     fetchBusinesses();
@@ -1636,6 +1648,16 @@ function App() {
   };
 
   const handleShowListingForm = () => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+    
+    if (user.role !== 'seller') {
+      showNotification('error', 'Only sellers can list businesses');
+      return;
+    }
+    
     setShowListingForm(true);
   };
 
@@ -1647,24 +1669,17 @@ function App() {
   const handleListingSuccess = (business, action) => {
     if (action === 'draft') {
       setShowListingForm(false);
-      setNotification({
-        type: 'success',
-        message: 'Draft saved successfully! You can continue editing later.'
-      });
+      showNotification('success', 'Draft saved successfully! Please check your email for verification.');
     } else if (action === 'publish') {
       setShowListingForm(false);
-      setPendingBusiness(business);
-      setShowPaymentModal(true);
+      showNotification('success', 'Business created! Please check your email for verification before payment.');
     }
   };
 
   const handlePaymentSuccess = (paymentData) => {
     setShowPaymentModal(false);
     setPendingBusiness(null);
-    setNotification({
-      type: 'success',
-      message: 'Payment successful! Your business listing is now active and visible to buyers.'
-    });
+    showNotification('success', 'Payment successful! Your business listing is now active and visible to buyers.');
     // Refresh business listings
     fetchBusinesses();
   };
@@ -1677,6 +1692,11 @@ function App() {
   const showNotification = (type, message) => {
     setNotification({ type, message });
     setTimeout(() => setNotification(null), 5000);
+  };
+
+  const handleAuthSuccess = () => {
+    setShowAuthModal(false);
+    showNotification('success', 'Welcome to MoldovaBiz!');
   };
 
   return (
@@ -1701,7 +1721,7 @@ function App() {
                 Marketplace
               </span>
             </div>
-            <nav className="flex space-x-6">
+            <nav className="flex items-center space-x-6">
               <a href="#" className="text-gray-700 hover:text-blue-600">Browse Businesses</a>
               <button 
                 onClick={handleShowListingForm}
@@ -1709,7 +1729,31 @@ function App() {
               >
                 List Your Business
               </button>
-              <a href="#" className="text-gray-700 hover:text-blue-600">Subscribe</a>
+              {user ? (
+                <div className="flex items-center space-x-4">
+                  <span className="text-gray-700">
+                    Welcome, {user.name}
+                    {user.role === 'buyer' && user.subscription_status === 'active' && (
+                      <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                        Subscribed
+                      </span>
+                    )}
+                  </span>
+                  <button
+                    onClick={logout}
+                    className="text-gray-700 hover:text-blue-600"
+                  >
+                    Logout
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                >
+                  Sign In
+                </button>
+              )}
             </nav>
           </div>
         </div>
@@ -1848,6 +1892,16 @@ function App() {
           business={pendingBusiness}
           onClose={handleClosePaymentModal}
           onPaymentSuccess={handlePaymentSuccess}
+        />
+      )}
+
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          mode={authMode}
+          onSwitchMode={setAuthMode}
         />
       )}
     </div>
