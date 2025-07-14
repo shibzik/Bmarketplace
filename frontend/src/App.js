@@ -1193,137 +1193,273 @@ const BusinessCard = ({ business, onClick }) => {
 
 // Business Detail Modal
 const BusinessDetailModal = ({ business, onClose }) => {
+  const { user } = useAuth();
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState('login');
+  
   if (!business) return null;
 
+  const isSubscribed = user?.role === 'buyer' && 
+                      user?.subscription_status === 'active' && 
+                      user?.subscription_expires_at && 
+                      new Date(user.subscription_expires_at) > new Date();
+
+  const canViewSellerInfo = user?.role === 'seller' && business.seller_id === user.id || isSubscribed;
+
+  const handleContactSeller = () => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+    
+    if (user.role !== 'buyer') {
+      alert('Only buyers can contact sellers');
+      return;
+    }
+    
+    if (!isSubscribed) {
+      setShowSubscriptionModal(true);
+      return;
+    }
+  };
+
+  const handleSubscriptionSuccess = () => {
+    setShowSubscriptionModal(false);
+    // Refresh user info to get updated subscription status
+    window.location.reload();
+  };
+
+  const handleDocumentDownload = async (documentId) => {
+    try {
+      const response = await axios.get(`${API}/businesses/${business.id}/documents/${documentId}`);
+      const { filename, content_type, file_data } = response.data;
+      
+      // Convert base64 to blob and download
+      const byteCharacters = atob(file_data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: content_type });
+      
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download failed:', error);
+      alert('Failed to download document');
+    }
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-start mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">{business.title}</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 text-2xl"
-            >
-              ×
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h3 className="text-lg font-semibold mb-3">Business Overview</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Industry:</span>
-                  <span className="font-medium">{formatIndustryName(business.industry)}</span>
+    <>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-6">
+            <div className="flex justify-between items-start mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">{business.title}</h2>
+              <button
+                onClick={onClose}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-lg font-semibold mb-3">Business Overview</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Industry:</span>
+                    <span className="font-medium">{formatIndustryName(business.industry)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Region:</span>
+                    <span className="font-medium">{formatRegionName(business.region)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Risk Grade:</span>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRiskGradeColor(business.risk_grade)}`}>
+                      {business.risk_grade}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Seller:</span>
+                    <span className="font-medium">{business.seller_name}</span>
+                  </div>
+                  {canViewSellerInfo && business.seller_email && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Email:</span>
+                      <span className="font-medium">{business.seller_email}</span>
+                    </div>
+                  )}
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Region:</span>
-                  <span className="font-medium">{formatRegionName(business.region)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Risk Grade:</span>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRiskGradeColor(business.risk_grade)}`}>
-                    {business.risk_grade}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Seller:</span>
-                  <span className="font-medium">{business.seller_name}</span>
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-semibold mb-3">Financial Summary</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Annual Revenue:</span>
+                    <span className="font-medium text-green-600">{formatCurrency(business.annual_revenue)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">EBITDA:</span>
+                    <span className="font-medium text-green-600">{formatCurrency(business.ebitda)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Asking Price:</span>
+                    <span className="font-medium text-blue-600 text-lg">{formatCurrency(business.asking_price)}</span>
+                  </div>
                 </div>
               </div>
             </div>
             
-            <div>
-              <h3 className="text-lg font-semibold mb-3">Financial Summary</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Annual Revenue:</span>
-                  <span className="font-medium text-green-600">{formatCurrency(business.annual_revenue)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">EBITDA:</span>
-                  <span className="font-medium text-green-600">{formatCurrency(business.ebitda)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Asking Price:</span>
-                  <span className="font-medium text-blue-600 text-lg">{formatCurrency(business.asking_price)}</span>
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold mb-3">Description</h3>
+              <p className="text-gray-700">{business.description}</p>
+            </div>
+            
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold mb-3">Reason for Sale</h3>
+              <p className="text-gray-700">{business.reason_for_sale}</p>
+            </div>
+            
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold mb-3">Growth Opportunities</h3>
+              <p className="text-gray-700">{business.growth_opportunities}</p>
+            </div>
+            
+            {business.key_metrics && (
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold mb-3">Key Metrics</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  {Object.entries(business.key_metrics).map(([key, value]) => (
+                    <div key={key} className="flex justify-between">
+                      <span className="text-gray-600">{key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</span>
+                      <span className="font-medium">{value}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
-          </div>
-          
-          <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-3">Description</h3>
-            <p className="text-gray-700">{business.description}</p>
-          </div>
-          
-          <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-3">Reason for Sale</h3>
-            <p className="text-gray-700">{business.reason_for_sale}</p>
-          </div>
-          
-          <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-3">Growth Opportunities</h3>
-            <p className="text-gray-700">{business.growth_opportunities}</p>
-          </div>
-          
-          {business.key_metrics && (
-            <div className="mt-6">
-              <h3 className="text-lg font-semibold mb-3">Key Metrics</h3>
-              <div className="grid grid-cols-2 gap-4">
-                {Object.entries(business.key_metrics).map(([key, value]) => (
-                  <div key={key} className="flex justify-between">
-                    <span className="text-gray-600">{key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</span>
-                    <span className="font-medium">{value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {business.financial_data && business.financial_data.length > 0 && (
-            <div className="mt-6">
-              <h3 className="text-lg font-semibold mb-3">3-Year Financial Data</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="text-left p-2">Year</th>
-                      <th className="text-right p-2">Revenue</th>
-                      <th className="text-right p-2">Profit/Loss</th>
-                      <th className="text-right p-2">EBITDA</th>
-                      <th className="text-right p-2">Cash Flow</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {business.financial_data.map((data, index) => (
-                      <tr key={index} className="border-t">
-                        <td className="p-2 font-medium">{data.year}</td>
-                        <td className="text-right p-2">{formatCurrency(data.revenue)}</td>
-                        <td className="text-right p-2">{formatCurrency(data.profit_loss)}</td>
-                        <td className="text-right p-2">{formatCurrency(data.ebitda)}</td>
-                        <td className="text-right p-2">{formatCurrency(data.cash_flow)}</td>
+            )}
+            
+            {business.financial_data && business.financial_data.length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold mb-3">3-Year Financial Data</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="text-left p-2">Year</th>
+                        <th className="text-right p-2">Revenue</th>
+                        <th className="text-right p-2">Profit/Loss</th>
+                        <th className="text-right p-2">EBITDA</th>
+                        <th className="text-right p-2">Cash Flow</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {business.financial_data.map((data, index) => (
+                        <tr key={index} className="border-t">
+                          <td className="p-2 font-medium">{data.year}</td>
+                          <td className="text-right p-2">{formatCurrency(data.revenue)}</td>
+                          <td className="text-right p-2">{formatCurrency(data.profit_loss)}</td>
+                          <td className="text-right p-2">{formatCurrency(data.ebitda)}</td>
+                          <td className="text-right p-2">{formatCurrency(data.cash_flow)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
+            )}
+            
+            {business.documents && business.documents.length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold mb-3">Business Documents</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {business.documents.map((doc, index) => (
+                    <div key={index} className="flex items-center p-3 border rounded-lg">
+                      <div className="text-red-600 mr-3">📄</div>
+                      <div className="flex-1">
+                        <div className="font-medium">{doc.filename}</div>
+                        <div className="text-sm text-gray-500">
+                          {(doc.file_size / 1024 / 1024).toFixed(2)} MB
+                        </div>
+                      </div>
+                      {canViewSellerInfo ? (
+                        <button
+                          onClick={() => handleDocumentDownload(doc.id)}
+                          className="text-blue-600 hover:text-blue-800 text-sm"
+                        >
+                          Download
+                        </button>
+                      ) : (
+                        <span className="text-gray-400 text-sm">Subscription Required</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <div className="mt-8 p-4 bg-blue-50 rounded-lg">
+              <h3 className="font-semibold text-blue-900 mb-2">Interested in this business?</h3>
+              {canViewSellerInfo ? (
+                <div>
+                  <p className="text-blue-800 text-sm mb-4">
+                    You have access to seller contact information and can download all documents.
+                  </p>
+                  <div className="bg-green-50 p-3 rounded">
+                    <p className="text-green-800 font-medium">Contact Information:</p>
+                    <p className="text-green-700">Email: {business.seller_email}</p>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-blue-800 text-sm mb-4">
+                    Subscribe to access seller contact information and detailed due diligence documents.
+                  </p>
+                  <button 
+                    onClick={handleContactSeller}
+                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Subscribe to Contact Seller
+                  </button>
+                </div>
+              )}
             </div>
-          )}
-          
-          <div className="mt-8 p-4 bg-blue-50 rounded-lg">
-            <h3 className="font-semibold text-blue-900 mb-2">Interested in this business?</h3>
-            <p className="text-blue-800 text-sm mb-4">
-              Subscribe to access seller contact information and detailed due diligence documents.
-            </p>
-            <button className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-              Subscribe to Contact Seller
-            </button>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Subscription Modal */}
+      {showSubscriptionModal && (
+        <SubscriptionModal
+          isOpen={showSubscriptionModal}
+          onClose={() => setShowSubscriptionModal(false)}
+          onSubscriptionSuccess={handleSubscriptionSuccess}
+        />
+      )}
+
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          mode={authMode}
+          onSwitchMode={setAuthMode}
+        />
+      )}
+    </>
   );
 };
 
