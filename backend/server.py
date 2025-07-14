@@ -83,6 +83,60 @@ class FinancialData(BaseModel):
     liabilities: float
     cash_flow: float
 
+class BusinessDocument(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    filename: str
+    original_filename: str
+    file_size: int
+    content_type: str
+    uploaded_at: datetime = Field(default_factory=datetime.utcnow)
+    file_data: str  # Base64 encoded file data
+
+class User(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    email: str
+    password_hash: str
+    name: str
+    role: UserRole
+    is_email_verified: bool = False
+    email_verification_token: Optional[str] = None
+    subscription_status: Optional[SubscriptionStatus] = None
+    subscription_expires_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class UserCreate(BaseModel):
+    email: str
+    password: str
+    name: str
+    role: UserRole
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    name: str
+    role: UserRole
+    is_email_verified: bool
+    subscription_status: Optional[SubscriptionStatus] = None
+    subscription_expires_at: Optional[datetime] = None
+    created_at: datetime
+
+class EmailVerificationRequest(BaseModel):
+    email: str
+    
+class EmailVerificationConfirm(BaseModel):
+    email: str
+    token: str
+
+class SubscriptionPayment(BaseModel):
+    user_id: str
+    plan_type: str = "monthly"  # monthly, annual
+    amount: float = 29.99  # Monthly subscription fee
+
 class BusinessListing(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     title: str
