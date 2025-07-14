@@ -951,6 +951,9 @@ const BusinessFilters = ({ filters, onFilterChange, industries, regions, riskGra
 function App() {
   const [businesses, setBusinesses] = useState([]);
   const [selectedBusiness, setSelectedBusiness] = useState(null);
+  const [showListingForm, setShowListingForm] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [pendingBusiness, setPendingBusiness] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     industry: null,
@@ -963,6 +966,7 @@ function App() {
   const [industries, setIndustries] = useState([]);
   const [regions, setRegions] = useState([]);
   const [riskGrades, setRiskGrades] = useState([]);
+  const [notification, setNotification] = useState(null);
 
   useEffect(() => {
     fetchBusinesses();
@@ -1024,8 +1028,62 @@ function App() {
     setSelectedBusiness(null);
   };
 
+  const handleShowListingForm = () => {
+    setShowListingForm(true);
+  };
+
+  const handleCloseListingForm = () => {
+    setShowListingForm(false);
+    setPendingBusiness(null);
+  };
+
+  const handleListingSuccess = (business, action) => {
+    if (action === 'draft') {
+      setShowListingForm(false);
+      setNotification({
+        type: 'success',
+        message: 'Draft saved successfully! You can continue editing later.'
+      });
+    } else if (action === 'publish') {
+      setShowListingForm(false);
+      setPendingBusiness(business);
+      setShowPaymentModal(true);
+    }
+  };
+
+  const handlePaymentSuccess = (paymentData) => {
+    setShowPaymentModal(false);
+    setPendingBusiness(null);
+    setNotification({
+      type: 'success',
+      message: 'Payment successful! Your business listing is now active and visible to buyers.'
+    });
+    // Refresh business listings
+    fetchBusinesses();
+  };
+
+  const handleClosePaymentModal = () => {
+    setShowPaymentModal(false);
+    setPendingBusiness(null);
+  };
+
+  const showNotification = (type, message) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 5000);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Notification */}
+      {notification && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${
+          notification.type === 'success' ? 'bg-green-100 border border-green-400 text-green-700' : 
+          'bg-red-100 border border-red-400 text-red-700'
+        }`}>
+          {notification.message}
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1038,7 +1096,12 @@ function App() {
             </div>
             <nav className="flex space-x-6">
               <a href="#" className="text-gray-700 hover:text-blue-600">Browse Businesses</a>
-              <a href="#" className="text-gray-700 hover:text-blue-600">List Your Business</a>
+              <button 
+                onClick={handleShowListingForm}
+                className="text-gray-700 hover:text-blue-600"
+              >
+                List Your Business
+              </button>
               <a href="#" className="text-gray-700 hover:text-blue-600">Subscribe</a>
             </nav>
           </div>
@@ -1065,7 +1128,10 @@ function App() {
             <button className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
               Browse Businesses
             </button>
-            <button className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors">
+            <button 
+              onClick={handleShowListingForm}
+              className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors"
+            >
               List Your Business
             </button>
           </div>
@@ -1133,7 +1199,7 @@ function App() {
             <div>
               <h4 className="font-semibold mb-4">For Sellers</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-white">List Your Business</a></li>
+                <li><button onClick={handleShowListingForm} className="hover:text-white">List Your Business</button></li>
                 <li><a href="#" className="hover:text-white">Pricing</a></li>
                 <li><a href="#" className="hover:text-white">Seller Guide</a></li>
               </ul>
@@ -1158,6 +1224,23 @@ function App() {
         <BusinessDetailModal
           business={selectedBusiness}
           onClose={handleCloseModal}
+        />
+      )}
+
+      {/* Business Listing Form */}
+      {showListingForm && (
+        <BusinessListingForm
+          onClose={handleCloseListingForm}
+          onSuccess={handleListingSuccess}
+        />
+      )}
+
+      {/* Payment Modal */}
+      {showPaymentModal && pendingBusiness && (
+        <PaymentModal
+          business={pendingBusiness}
+          onClose={handleClosePaymentModal}
+          onPaymentSuccess={handlePaymentSuccess}
         />
       )}
     </div>
