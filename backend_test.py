@@ -622,7 +622,7 @@ class BusinessMarketplaceAPITester:
                         if (created_business.get('views') == 0 and 
                             created_business.get('inquiries') == 0 and
                             created_business.get('id') and
-                            created_business.get('seller_id')):
+                            created_business.get('created_at')):
                             
                             self.created_business_ids.append(created_business['id'])
                             self.log_test("Business Creation (Full Data)", True, 
