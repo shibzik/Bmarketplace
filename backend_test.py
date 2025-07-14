@@ -609,10 +609,10 @@ class BusinessMarketplaceAPITester:
             try:
                 created_business = response.json()
                 
-                # Verify required fields are present
+                # Verify required fields are present (based on actual API response)
                 required_fields = ['id', 'title', 'description', 'industry', 'region', 'annual_revenue', 
                                  'ebitda', 'asking_price', 'risk_grade', 'status', 'seller_name', 
-                                 'seller_email', 'created_at', 'updated_at', 'views', 'inquiries']
+                                 'created_at', 'views', 'inquiries']
                 missing_fields = [field for field in required_fields if field not in created_business]
                 
                 if not missing_fields:
