@@ -1859,5 +1859,11 @@ class BusinessMarketplaceAPITester:
 
 if __name__ == "__main__":
     tester = BusinessMarketplaceAPITester()
-    success = tester.run_all_tests()
+    
+    # Check if we should run only the recent fixes test
+    if len(sys.argv) > 1 and sys.argv[1] == "recent_fixes":
+        success = tester.run_recent_fixes_test()
+    else:
+        success = tester.run_all_tests()
+    
     sys.exit(0 if success else 1)
