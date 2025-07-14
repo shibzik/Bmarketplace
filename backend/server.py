@@ -915,25 +915,33 @@ async def get_business(
     return BusinessListingResponse(**response_data)
 
 @api_router.post("/businesses", response_model=BusinessListingResponse)
-async def create_business(business: BusinessListingCreate):
+async def create_business(
+    business: BusinessListingCreate,
+    current_user: Optional[UserResponse] = Depends(get_current_user_optional)
+):
     business_dict = business.dict()
     business_dict["id"] = str(uuid.uuid4())
-    business_dict["seller_id"] = str(uuid.uuid4())  # In real app, this would be authenticated user
     business_dict["created_at"] = datetime.utcnow()
     business_dict["updated_at"] = datetime.utcnow()
     business_dict["views"] = 0
     business_dict["inquiries"] = 0
     business_dict["featured"] = False
-    business_dict["status"] = BusinessStatus.PENDING_EMAIL_VERIFICATION
     
-    # Generate email verification token
-    business_dict["email_verification_token"] = generate_verification_token()
+    if current_user and current_user.role == UserRole.SELLER:
+        # Authenticated seller - use their info and skip email verification
+        business_dict["seller_id"] = current_user.id
+        business_dict["seller_email"] = current_user.email
+        business_dict["status"] = BusinessStatus.DRAFT
+    else:
+        # Anonymous user - require email verification
+        business_dict["seller_id"] = str(uuid.uuid4())  # Temporary ID
+        business_dict["status"] = BusinessStatus.PENDING_EMAIL_VERIFICATION
+        business_dict["email_verification_token"] = generate_verification_token()
+        
+        # Send verification email
+        await send_verification_email(business.seller_email, business_dict["email_verification_token"])
     
     await db.business_listings.insert_one(business_dict)
-    
-    # Send verification email
-    await send_verification_email(business.seller_email, business_dict["email_verification_token"])
-    
     return BusinessListingResponse(**business_dict)
 
 @api_router.post("/businesses/{business_id}/verify-email")
