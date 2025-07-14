@@ -57,11 +57,21 @@ class RiskGrade(str, Enum):
 
 class BusinessStatus(str, Enum):
     DRAFT = "draft"
+    PENDING_EMAIL_VERIFICATION = "pending_email_verification"
     PENDING_PAYMENT = "pending_payment"
     ACTIVE = "active"
     PENDING = "pending"
     SOLD = "sold"
     WITHDRAWN = "withdrawn"
+
+class UserRole(str, Enum):
+    BUYER = "buyer"
+    SELLER = "seller"
+
+class SubscriptionStatus(str, Enum):
+    ACTIVE = "active"
+    EXPIRED = "expired"
+    PENDING = "pending"
 
 # Models
 class FinancialData(BaseModel):
