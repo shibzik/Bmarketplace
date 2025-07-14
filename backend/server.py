@@ -112,6 +112,36 @@ class BusinessListingCreate(BaseModel):
     growth_opportunities: str
     financial_data: List[FinancialData]
     key_metrics: dict
+    status: BusinessStatus = BusinessStatus.DRAFT
+
+class BusinessListingUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    industry: Optional[IndustryType] = None
+    region: Optional[RegionType] = None
+    annual_revenue: Optional[float] = None
+    ebitda: Optional[float] = None
+    asking_price: Optional[float] = None
+    risk_grade: Optional[RiskGrade] = None
+    seller_name: Optional[str] = None
+    seller_email: Optional[str] = None
+    reason_for_sale: Optional[str] = None
+    growth_opportunities: Optional[str] = None
+    financial_data: Optional[List[FinancialData]] = None
+    key_metrics: Optional[dict] = None
+    status: Optional[BusinessStatus] = None
+
+class PaymentRequest(BaseModel):
+    business_id: str
+    payment_type: str = "listing_fee"
+    amount: float = 99.0  # Default listing fee
+
+class PaymentResponse(BaseModel):
+    payment_id: str
+    status: str
+    business_id: str
+    amount: float
+    message: str
 
 class BusinessListingResponse(BaseModel):
     id: str
