@@ -18,6 +18,7 @@ class BusinessMarketplaceAPITester:
         self.base_url = BACKEND_URL
         self.test_results = []
         self.sample_business_ids = []
+        self.created_business_ids = []  # Track businesses created during testing
         
     def log_test(self, test_name: str, success: bool, details: str = ""):
         """Log test results"""
