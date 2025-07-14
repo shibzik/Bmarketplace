@@ -816,7 +816,7 @@ async def get_businesses(
     sort_order: Optional[str] = "desc",
     featured_first: Optional[bool] = True
 ):
-    # Build query filter
+    # Build query filter - only show active businesses
     query_filter = {"status": BusinessStatus.ACTIVE}
     
     if industry:
@@ -851,10 +851,17 @@ async def get_businesses(
     # Execute query
     businesses = await db.business_listings.find(query_filter).sort(sort_criteria).to_list(100)
     
+    # Add document count to response
+    for business in businesses:
+        business["documents_count"] = len(business.get("documents", []))
+    
     return [BusinessCardResponse(**business) for business in businesses]
 
-@api_router.get("/businesses/{business_id}", response_model=BusinessListingResponse)
-async def get_business(business_id: str):
+@api_router.get("/businesses/{business_id}")
+async def get_business(
+    business_id: str,
+    current_user: Optional[UserResponse] = Depends(get_current_user)
+):
     business = await db.business_listings.find_one({"id": business_id})
     if not business:
         raise HTTPException(status_code=404, detail="Business not found")
@@ -865,21 +872,75 @@ async def get_business(business_id: str):
         {"$inc": {"views": 1}}
     )
     
-    return BusinessListingResponse(**business)
+    # Prepare response
+    response_data = business.copy()
+    
+    # Show seller contact info only to subscribed buyers or business owner
+    if current_user:
+        if current_user.role == UserRole.SELLER and business["seller_id"] == current_user.id:
+            # Owner can see everything
+            pass
+        elif current_user.role == UserRole.BUYER:
+            if (current_user.subscription_status == SubscriptionStatus.ACTIVE and 
+                current_user.subscription_expires_at > datetime.utcnow()):
+                # Subscribed buyer can see seller contact info
+                response_data["seller_email"] = business["seller_email"]
+            else:
+                # Non-subscribed buyer cannot see seller contact info
+                response_data["seller_email"] = None
+        else:
+            response_data["seller_email"] = None
+    else:
+        # Anonymous user cannot see seller contact info
+        response_data["seller_email"] = None
+    
+    return BusinessListingResponse(**response_data)
 
 @api_router.post("/businesses", response_model=BusinessListingResponse)
 async def create_business(business: BusinessListingCreate):
     business_dict = business.dict()
     business_dict["id"] = str(uuid.uuid4())
-    business_dict["seller_id"] = str(uuid.uuid4())  # In real app, this would be the authenticated user ID
+    business_dict["seller_id"] = str(uuid.uuid4())  # In real app, this would be authenticated user
     business_dict["created_at"] = datetime.utcnow()
     business_dict["updated_at"] = datetime.utcnow()
     business_dict["views"] = 0
     business_dict["inquiries"] = 0
     business_dict["featured"] = False
+    business_dict["status"] = BusinessStatus.PENDING_EMAIL_VERIFICATION
+    
+    # Generate email verification token
+    business_dict["email_verification_token"] = generate_verification_token()
     
     await db.business_listings.insert_one(business_dict)
+    
+    # Send verification email
+    await send_verification_email(business.seller_email, business_dict["email_verification_token"])
+    
     return BusinessListingResponse(**business_dict)
+
+@api_router.post("/businesses/{business_id}/verify-email")
+async def verify_business_email(business_id: str, token: str):
+    business = await db.business_listings.find_one({
+        "id": business_id,
+        "email_verification_token": token
+    })
+    
+    if not business:
+        raise HTTPException(status_code=400, detail="Invalid verification token")
+    
+    # Update business to pending payment
+    await db.business_listings.update_one(
+        {"id": business_id},
+        {
+            "$set": {
+                "status": BusinessStatus.PENDING_PAYMENT,
+                "updated_at": datetime.utcnow()
+            },
+            "$unset": {"email_verification_token": ""}
+        }
+    )
+    
+    return {"message": "Email verified successfully. You can now proceed with payment."}
 
 @api_router.put("/businesses/{business_id}", response_model=BusinessListingResponse)
 async def update_business(business_id: str, business: BusinessListingUpdate):
@@ -911,6 +972,10 @@ async def process_payment(business_id: str, payment: PaymentRequest):
     business = await db.business_listings.find_one({"id": business_id})
     if not business:
         raise HTTPException(status_code=404, detail="Business not found")
+    
+    # Check if business is ready for payment
+    if business["status"] != BusinessStatus.PENDING_PAYMENT:
+        raise HTTPException(status_code=400, detail="Business not ready for payment")
     
     # Mock payment processing
     payment_id = str(uuid.uuid4())
