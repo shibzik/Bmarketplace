@@ -339,27 +339,6 @@ class BusinessCardResponse(BaseModel):
     featured: bool
     documents_count: int = 0
 
-class BusinessListingResponse(BaseModel):
-    id: str
-    title: str
-    description: str
-    industry: IndustryType
-    region: RegionType
-    annual_revenue: float
-    ebitda: float
-    asking_price: float
-    risk_grade: RiskGrade
-    status: BusinessStatus
-    seller_name: str
-    reason_for_sale: str
-    growth_opportunities: str
-    financial_data: List[FinancialData]
-    key_metrics: dict
-    created_at: datetime
-    views: int
-    inquiries: int
-    featured: bool
-
 class BusinessCardResponse(BaseModel):
     id: str
     title: str
