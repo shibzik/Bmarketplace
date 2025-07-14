@@ -241,6 +241,4 @@ test_plan:
 
 agent_communication:
   - agent: "main"
-    message: "Created comprehensive Moldovan Business Marketplace with professional UI, advanced filtering, and detailed business profiles. Need to test all API endpoints and sample data generation."
-  - agent: "testing"
-    message: "✅ BACKEND TESTING COMPLETE: All backend APIs tested comprehensively and working perfectly. 34/34 tests passed (100% success rate). Key findings: 1) Business Listings API - 5 sample businesses loaded correctly with all required fields, 2) Business Detail API - detailed view with financial data and view increment working, 3) Filtering System - all filters (industry, region, revenue, risk grade) working correctly, 4) Sorting - all sort options working with proper featured business prioritization, 5) Sample Data - complete 3-year financial data for all businesses, 6) Filter Options APIs - all returning proper data structures. Edge cases tested: invalid IDs return 404, invalid filter values return 422, extreme ranges handled correctly. Backend is production-ready."
+    message: "Added complete 'List Your Business' feature with 5-step form, draft/publish workflow, and mock payment processing. Need to test new backend endpoints and frontend listing form functionality."
