@@ -1717,6 +1717,11 @@ class BusinessMarketplaceAPITester:
                 try:
                     created_business = response.json()
                     
+                    # Debug: Print the created business details
+                    print(f"DEBUG: Created business: {json.dumps(created_business, indent=2, default=str)}")
+                    print(f"DEBUG: Expected seller_id: {seller_user['id']}")
+                    print(f"DEBUG: Actual seller_id: {created_business.get('seller_id')}")
+                    
                     # Verify the status is 'draft' (not 'pending_email_verification')
                     if created_business.get('status') == 'draft':
                         # Verify seller_id matches the authenticated user
