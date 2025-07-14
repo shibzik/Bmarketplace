@@ -147,7 +147,7 @@ class BusinessListing(BaseModel):
     ebitda: float
     asking_price: float
     risk_grade: RiskGrade
-    status: BusinessStatus = BusinessStatus.ACTIVE
+    status: BusinessStatus = BusinessStatus.DRAFT
     seller_id: str
     seller_name: str
     seller_email: str
@@ -155,11 +155,13 @@ class BusinessListing(BaseModel):
     growth_opportunities: str
     financial_data: List[FinancialData]
     key_metrics: dict
+    documents: List[BusinessDocument] = []
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     views: int = 0
     inquiries: int = 0
     featured: bool = False
+    email_verification_token: Optional[str] = None
     
 class BusinessListingCreate(BaseModel):
     title: str
