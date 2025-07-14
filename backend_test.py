@@ -1078,7 +1078,7 @@ class BusinessMarketplaceAPITester:
         print(f"Testing against: {self.base_url}")
         print("=" * 80)
         
-        # Run all test methods
+        # Run existing tests first
         self.test_root_endpoint()
         self.test_business_listings_basic()
         self.test_business_detail()
@@ -1090,6 +1090,13 @@ class BusinessMarketplaceAPITester:
         self.test_featured_prioritization()
         self.test_filter_options_endpoints()
         self.test_combined_filters()
+        
+        # Run new Business Creation/Update and Payment Processing tests
+        self.test_business_creation()
+        self.test_business_update()
+        self.test_seller_businesses()
+        self.test_payment_processing()
+        self.test_integration_workflow()
         
         # Summary
         print("\n" + "=" * 80)
