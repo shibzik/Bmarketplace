@@ -878,7 +878,7 @@ async def get_businesses(
 @api_router.get("/businesses/{business_id}")
 async def get_business(
     business_id: str,
-    current_user: Optional[UserResponse] = Depends(get_current_user)
+    current_user: Optional[UserResponse] = Depends(get_current_user_optional)
 ):
     business = await db.business_listings.find_one({"id": business_id})
     if not business:
