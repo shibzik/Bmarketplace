@@ -333,20 +333,13 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Authentication System"
-    - "Email Verification System" 
-    - "Subscription Payment System"
     - "Document Upload/Download System"
     - "Business Creation/Update API"
-    - "Payment Processing API"
-    - "Authentication Interface"
-    - "Subscription Interface"
-    - "Business Listing Form"
-    - "Document Management Interface"
-    - "Payment Interface"
-  stuck_tasks: []
-  test_all: true
-  test_priority: "high_first"
+  stuck_tasks:
+    - "Document Upload/Download System"
+    - "Business Creation/Update API"
+  test_all: false
+  test_priority: "stuck_first"
 
 agent_communication:
   - agent: "main"
