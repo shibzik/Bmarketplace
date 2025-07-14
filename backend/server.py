@@ -550,6 +550,259 @@ async def init_sample_data():
 async def root():
     return {"message": "Moldovan Business Marketplace API"}
 
+# Authentication endpoints
+@api_router.post("/auth/register", response_model=UserResponse)
+async def register(user: UserCreate):
+    # Check if user already exists
+    existing_user = await db.users.find_one({"email": user.email})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Hash password
+    password_hash = hash_password(user.password)
+    
+    # Create user
+    user_dict = user.dict()
+    user_dict["password_hash"] = password_hash
+    user_dict["id"] = str(uuid.uuid4())
+    user_dict["is_email_verified"] = False
+    user_dict["email_verification_token"] = generate_verification_token()
+    user_dict["created_at"] = datetime.utcnow()
+    user_dict["updated_at"] = datetime.utcnow()
+    
+    if user.role == UserRole.BUYER:
+        user_dict["subscription_status"] = SubscriptionStatus.PENDING
+    
+    del user_dict["password"]
+    
+    await db.users.insert_one(user_dict)
+    
+    # Send verification email
+    await send_verification_email(user.email, user_dict["email_verification_token"])
+    
+    return UserResponse(**user_dict)
+
+@api_router.post("/auth/login")
+async def login(user: UserLogin):
+    # Find user
+    db_user = await db.users.find_one({"email": user.email})
+    if not db_user or not verify_password(user.password, db_user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # Create access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": db_user["id"]}, expires_delta=access_token_expires
+    )
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": UserResponse(**db_user)
+    }
+
+@api_router.get("/auth/me", response_model=UserResponse)
+async def get_current_user_info(current_user: UserResponse = Depends(get_current_user)):
+    return current_user
+
+# Email verification endpoints
+@api_router.post("/auth/verify-email/request")
+async def request_email_verification(request: EmailVerificationRequest):
+    user = await db.users.find_one({"email": request.email})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user["is_email_verified"]:
+        raise HTTPException(status_code=400, detail="Email already verified")
+    
+    # Generate new token
+    token = generate_verification_token()
+    await db.users.update_one(
+        {"email": request.email},
+        {"$set": {"email_verification_token": token, "updated_at": datetime.utcnow()}}
+    )
+    
+    # Send verification email
+    await send_verification_email(request.email, token)
+    
+    return {"message": "Verification email sent"}
+
+@api_router.post("/auth/verify-email/confirm")
+async def confirm_email_verification(request: EmailVerificationConfirm):
+    user = await db.users.find_one({
+        "email": request.email,
+        "email_verification_token": request.token
+    })
+    
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid verification token")
+    
+    # Update user as verified
+    await db.users.update_one(
+        {"email": request.email},
+        {
+            "$set": {
+                "is_email_verified": True,
+                "updated_at": datetime.utcnow()
+            },
+            "$unset": {"email_verification_token": ""}
+        }
+    )
+    
+    return {"message": "Email verified successfully"}
+
+# Subscription endpoints
+@api_router.post("/subscription/payment")
+async def process_subscription_payment(
+    payment: SubscriptionPayment,
+    current_user: UserResponse = Depends(get_current_buyer)
+):
+    # Mock payment processing
+    payment_id = str(uuid.uuid4())
+    
+    # Simulate 90% success rate
+    import random
+    success = random.random() < 0.9
+    
+    if success:
+        # Calculate subscription expiry
+        if payment.plan_type == "monthly":
+            expires_at = datetime.utcnow() + timedelta(days=30)
+        else:  # annual
+            expires_at = datetime.utcnow() + timedelta(days=365)
+        
+        # Update user subscription
+        await db.users.update_one(
+            {"id": current_user.id},
+            {
+                "$set": {
+                    "subscription_status": SubscriptionStatus.ACTIVE,
+                    "subscription_expires_at": expires_at,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        
+        return {
+            "payment_id": payment_id,
+            "status": "success",
+            "message": "Subscription activated successfully!",
+            "expires_at": expires_at
+        }
+    else:
+        return {
+            "payment_id": payment_id,
+            "status": "failed",
+            "message": "Payment failed. Please try again."
+        }
+
+# Document management endpoints
+@api_router.post("/businesses/{business_id}/documents")
+async def upload_business_document(
+    business_id: str,
+    file: UploadFile = File(...),
+    current_user: UserResponse = Depends(get_current_seller)
+):
+    # Verify business exists and user owns it
+    business = await db.business_listings.find_one({"id": business_id})
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+    
+    if business["seller_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to upload documents for this business")
+    
+    # Check if already has 10 documents
+    if len(business.get("documents", [])) >= 10:
+        raise HTTPException(status_code=400, detail="Maximum 10 documents allowed per listing")
+    
+    # Validate file type (PDF only)
+    if file.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+    
+    # Read file content
+    file_content = await file.read()
+    if len(file_content) > 10 * 1024 * 1024:  # 10MB limit
+        raise HTTPException(status_code=400, detail="File size must be less than 10MB")
+    
+    # Convert to base64
+    file_data = base64.b64encode(file_content).decode('utf-8')
+    
+    # Create document record
+    document = BusinessDocument(
+        filename=file.filename,
+        original_filename=file.filename,
+        file_size=len(file_content),
+        content_type=file.content_type,
+        file_data=file_data
+    )
+    
+    # Add document to business
+    await db.business_listings.update_one(
+        {"id": business_id},
+        {
+            "$push": {"documents": document.dict()},
+            "$set": {"updated_at": datetime.utcnow()}
+        }
+    )
+    
+    return {"message": "Document uploaded successfully", "document_id": document.id}
+
+@api_router.get("/businesses/{business_id}/documents/{document_id}")
+async def get_business_document(
+    business_id: str,
+    document_id: str,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    # Verify business exists
+    business = await db.business_listings.find_one({"id": business_id})
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+    
+    # Check if user has access (seller or subscribed buyer)
+    if current_user.role == UserRole.SELLER:
+        if business["seller_id"] != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized")
+    elif current_user.role == UserRole.BUYER:
+        if (current_user.subscription_status != SubscriptionStatus.ACTIVE or 
+            current_user.subscription_expires_at < datetime.utcnow()):
+            raise HTTPException(status_code=403, detail="Active subscription required")
+    
+    # Find document
+    document = next((doc for doc in business.get("documents", []) if doc["id"] == document_id), None)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    return {
+        "filename": document["filename"],
+        "content_type": document["content_type"],
+        "file_data": document["file_data"]
+    }
+
+@api_router.delete("/businesses/{business_id}/documents/{document_id}")
+async def delete_business_document(
+    business_id: str,
+    document_id: str,
+    current_user: UserResponse = Depends(get_current_seller)
+):
+    # Verify business exists and user owns it
+    business = await db.business_listings.find_one({"id": business_id})
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+    
+    if business["seller_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Remove document
+    await db.business_listings.update_one(
+        {"id": business_id},
+        {
+            "$pull": {"documents": {"id": document_id}},
+            "$set": {"updated_at": datetime.utcnow()}
+        }
+    )
+    
+    return {"message": "Document deleted successfully"}
+
 @api_router.get("/businesses", response_model=List[BusinessCardResponse])
 async def get_businesses(
     industry: Optional[IndustryType] = None,
