@@ -1646,9 +1646,11 @@ class BusinessMarketplaceAPITester:
         # Test 2: Business Creation Workflow (Authenticated) - should return 'draft' status
         print("\n--- Test 2: Authenticated Business Creation Workflow ---")
         
-        # Register a seller user
+        # Register a seller user with unique email
+        import time
+        timestamp = str(int(time.time()))
         seller_data = {
-            "email": "test.seller.fix@moldovan-marketplace.com",
+            "email": f"test.seller.fix.{timestamp}@moldovan-marketplace.com",
             "password": "SecurePassword789!",
             "name": "Test Seller Fix",
             "role": "seller"
