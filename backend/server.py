@@ -20,10 +20,43 @@ import bcrypt
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
+# JWT Configuration
+SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
+
+# Security
+security = HTTPBearer()
+
+# Helper functions
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def verify_password(password: str, hashed: str) -> bool:
+    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def generate_verification_token() -> str:
+    return secrets.token_urlsafe(32)
+
+async def send_verification_email(email: str, token: str):
+    # Mock email sending - in production, use actual email service
+    print(f"MOCK EMAIL: Verification email sent to {email} with token: {token}")
+    return True
 
 # Create the main app without a prefix
 app = FastAPI()
