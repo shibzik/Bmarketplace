@@ -186,6 +186,24 @@ async def get_current_seller(current_user: UserResponse = Depends(get_current_us
     if current_user.role != UserRole.SELLER:
         raise HTTPException(status_code=403, detail="Seller access required")
     return current_user
+
+async def get_current_user_optional(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer(auto_error=False))):
+    """Get current user if token provided, otherwise return None"""
+    if not credentials:
+        return None
+    
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            return None
+    except JWTError:
+        return None
+    
+    user = await db.users.find_one({"id": user_id})
+    if user is None:
+        return None
+    return UserResponse(**user)
     created_at: datetime
 
 class EmailVerificationRequest(BaseModel):
