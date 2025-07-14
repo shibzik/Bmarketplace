@@ -212,7 +212,7 @@ backend:
 
   - task: "Business Creation/Update API"
     implemented: true
-    working: false
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 1
     priority: "high"
@@ -224,6 +224,9 @@ backend:
       - working: false
         agent: "testing"
         comment: "ISSUE: Business creation API returns 'pending_email_verification' status instead of expected 'draft' status. This indicates the email verification workflow is automatically triggered during creation, which may be correct behavior but differs from test expectations. Validation working correctly (rejects missing required fields)."
+      - working: true
+        agent: "testing"
+        comment: "FIXED: Recent fixes validation successful. Anonymous business access working correctly (seller email hidden). Authenticated business creation now returns 'draft' status with correct seller_id. Payment processing works with 'draft' status businesses and changes status to 'active'. Fixed syntax error in get_current_user_optional function and added seller_id to BusinessListingResponse model."
 
   - task: "Payment Processing API"
     implemented: true
@@ -239,6 +242,9 @@ backend:
       - working: true
         agent: "testing"
         comment: "Minor: Could not fully test due to business creation status issue, but payment endpoint structure and error handling (404 for non-existent business) working correctly. Seller businesses API working correctly."
+      - working: true
+        agent: "testing"
+        comment: "VALIDATED: Payment processing with 'draft' status businesses working correctly. Payment successfully changes business status from 'draft' to 'active' as expected."
 
 frontend:
   - task: "Authentication Interface"
