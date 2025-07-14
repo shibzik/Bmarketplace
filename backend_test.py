@@ -21,6 +21,8 @@ class BusinessMarketplaceAPITester:
         self.test_results = []
         self.sample_business_ids = []
         self.created_business_ids = []  # Track businesses created during testing
+        self.auth_tokens = {}  # Store auth tokens for different users
+        self.test_users = {}  # Store test user data
         
     def log_test(self, test_name: str, success: bool, details: str = ""):
         """Log test results"""
