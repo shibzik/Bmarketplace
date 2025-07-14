@@ -340,10 +340,8 @@ metadata:
 test_plan:
   current_focus:
     - "Document Upload/Download System"
-    - "Business Creation/Update API"
   stuck_tasks:
     - "Document Upload/Download System"
-    - "Business Creation/Update API"
   test_all: false
   test_priority: "stuck_first"
 
@@ -352,3 +350,5 @@ agent_communication:
     message: "Implemented complete authentication system, email verification, subscription payments, and PDF document management. Need comprehensive testing of all new features and integration workflows."
   - agent: "testing"
     message: "COMPREHENSIVE BACKEND TESTING COMPLETED - 86.2% SUCCESS RATE (50/58 tests passed). CRITICAL FINDINGS: 1) Authentication System: EXCELLENT - All 8 tests passed, JWT auth, role-based access, registration/login all working perfectly. 2) Email Verification: EXCELLENT - All 4 tests passed, proper request/response handling. 3) Subscription System: EXCELLENT - All 4 tests passed, payment processing with 90% success simulation working. 4) Business Listings/Filtering: EXCELLENT - All filtering, sorting, pagination working perfectly. 5) CRITICAL ISSUES: Document upload failing with 403 errors (authentication/ownership validation issue), Business creation returns 'pending_email_verification' instead of 'draft' status. 6) Minor: Business detail API has 403 error (likely related to subscription access control). Overall: Core marketplace functionality working excellently, authentication systems robust, only document management and business creation workflow need fixes."
+  - agent: "testing"
+    message: "RECENT FIXES VALIDATION COMPLETED - 100% SUCCESS RATE (3/3 tests passed). VALIDATED FIXES: 1) Anonymous Business Details Access: WORKING - Business details accessible without authentication, seller contact info properly hidden from anonymous users. 2) Authenticated Business Creation: WORKING - Authenticated sellers can create businesses with 'draft' status (not 'pending_email_verification'), seller_id correctly matches authenticated user. 3) Payment Processing with Draft Status: WORKING - Payment processing works with 'draft' status businesses and successfully changes status to 'active'. TECHNICAL FIXES APPLIED: Fixed syntax error in get_current_user_optional function, added seller_id to BusinessListingResponse model. All requested fixes are now working correctly."
