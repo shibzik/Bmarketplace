@@ -114,8 +114,399 @@ const getRiskGradeColor = (grade) => {
   }
 };
 
-// Business Listing Form Component
-const BusinessListingForm = ({ onClose, onSuccess }) => {
+// Authentication Modal Component
+const AuthModal = ({ isOpen, onClose, mode, onSwitchMode }) => {
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    name: '',
+    role: 'buyer'
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const { login, register } = useAuth();
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      if (mode === 'login') {
+        const result = await login(formData.email, formData.password);
+        if (result.success) {
+          onClose();
+          setSuccess('Login successful!');
+        } else {
+          setError(result.error);
+        }
+      } else {
+        const result = await register(formData.email, formData.password, formData.name, formData.role);
+        if (result.success) {
+          setSuccess('Registration successful! Please check your email for verification.');
+          setTimeout(() => onSwitchMode('login'), 2000);
+        } else {
+          setError(result.error);
+        }
+      }
+    } catch (error) {
+      setError('An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-md w-full p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">
+            {mode === 'login' ? 'Login' : 'Sign Up'}
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 text-2xl"
+          >
+            ×
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
+            {success}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {mode === 'register' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => handleInputChange('name', e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => handleInputChange('email', e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <input
+              type="password"
+              value={formData.password}
+              onChange={(e) => handleInputChange('password', e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+
+          {mode === 'register' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">I am a</label>
+              <select
+                value={formData.role}
+                onChange={(e) => handleInputChange('role', e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="buyer">Buyer (looking to buy a business)</option>
+                <option value="seller">Seller (looking to sell a business)</option>
+              </select>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 disabled:opacity-50"
+          >
+            {loading ? 'Please wait...' : (mode === 'login' ? 'Login' : 'Sign Up')}
+          </button>
+        </form>
+
+        <div className="mt-4 text-center">
+          <button
+            onClick={() => onSwitchMode(mode === 'login' ? 'register' : 'login')}
+            className="text-blue-600 hover:text-blue-800"
+          >
+            {mode === 'login' 
+              ? "Don't have an account? Sign up" 
+              : "Already have an account? Login"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Subscription Modal Component
+const SubscriptionModal = ({ isOpen, onClose, onSubscriptionSuccess }) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [planType, setPlanType] = useState('monthly');
+  const { user } = useAuth();
+
+  const handleSubscriptionPayment = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      const response = await axios.post(`${API}/subscription/payment`, {
+        user_id: user.id,
+        plan_type: planType,
+        amount: planType === 'monthly' ? 29.99 : 299.99
+      });
+      
+      if (response.data.status === 'success') {
+        onSubscriptionSuccess(response.data);
+      } else {
+        setError(response.data.message || 'Payment failed');
+      }
+    } catch (error) {
+      setError('Payment failed: ' + (error.response?.data?.detail || error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-md w-full p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Subscribe to Access</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 text-2xl"
+          >
+            ×
+          </button>
+        </div>
+        
+        <div className="mb-6">
+          <p className="text-gray-600 mb-4">
+            Subscribe to access seller contact information and detailed business documents.
+          </p>
+          
+          <div className="space-y-4">
+            <div className={`border-2 rounded-lg p-4 cursor-pointer ${
+              planType === 'monthly' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+            }`} onClick={() => setPlanType('monthly')}>
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="font-semibold">Monthly Plan</h3>
+                  <p className="text-sm text-gray-600">Access to all business listings</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-2xl font-bold">$29.99</span>
+                  <span className="text-gray-600">/month</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className={`border-2 rounded-lg p-4 cursor-pointer ${
+              planType === 'annual' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+            }`} onClick={() => setPlanType('annual')}>
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="font-semibold">Annual Plan</h3>
+                  <p className="text-sm text-gray-600">Save 17% with annual billing</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-2xl font-bold">$299.99</span>
+                  <span className="text-gray-600">/year</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            {error}
+          </div>
+        )}
+        
+        <div className="flex space-x-4">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubscriptionPayment}
+            disabled={loading}
+            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+          >
+            {loading ? 'Processing...' : `Subscribe ${planType === 'monthly' ? '$29.99' : '$299.99'}`}
+          </button>
+        </div>
+        
+        <div className="mt-4 text-xs text-gray-500 text-center">
+          <p>This is a mock payment system for demonstration purposes.</p>
+          <p>90% success rate simulation for testing.</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// File Upload Component
+const FileUploadSection = ({ businessId, documents, onDocumentUploaded, onDocumentDeleted }) => {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      setError('Only PDF files are allowed');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setError('File size must be less than 10MB');
+      return;
+    }
+
+    if (documents.length >= 10) {
+      setError('Maximum 10 documents allowed per listing');
+      return;
+    }
+
+    try {
+      setUploading(true);
+      setError('');
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await axios.post(`${API}/businesses/${businessId}/documents`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      onDocumentUploaded(response.data);
+    } catch (error) {
+      setError('Upload failed: ' + (error.response?.data?.detail || error.message));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteDocument = async (documentId) => {
+    try {
+      await axios.delete(`${API}/businesses/${businessId}/documents/${documentId}`);
+      onDocumentDeleted(documentId);
+    } catch (error) {
+      setError('Delete failed: ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold">Business Documents</h3>
+        <span className="text-sm text-gray-600">{documents.length}/10 documents</span>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+
+      {documents.length < 10 && (
+        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+          <input
+            type="file"
+            accept=".pdf"
+            onChange={handleFileUpload}
+            disabled={uploading}
+            className="hidden"
+            id="file-upload"
+          />
+          <label
+            htmlFor="file-upload"
+            className={`cursor-pointer ${uploading ? 'opacity-50' : ''}`}
+          >
+            {uploading ? (
+              <div className="text-gray-600">Uploading...</div>
+            ) : (
+              <div>
+                <div className="text-gray-600 mb-2">
+                  Click to upload a PDF document
+                </div>
+                <div className="text-sm text-gray-500">
+                  Maximum 10MB, PDF files only
+                </div>
+              </div>
+            )}
+          </label>
+        </div>
+      )}
+
+      {documents.length > 0 && (
+        <div className="space-y-2">
+          {documents.map((doc) => (
+            <div key={doc.id} className="flex justify-between items-center p-3 border rounded-lg">
+              <div className="flex items-center space-x-3">
+                <div className="text-red-600">📄</div>
+                <div>
+                  <div className="font-medium">{doc.filename}</div>
+                  <div className="text-sm text-gray-500">
+                    {(doc.file_size / 1024 / 1024).toFixed(2)} MB
+                  </div>
+                </div>
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => handleDeleteDocument(doc.id)}
+                  className="text-red-600 hover:text-red-800"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     title: '',
