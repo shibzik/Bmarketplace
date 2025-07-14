@@ -102,20 +102,68 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Build a professional, transparent, trust-focused web marketplace where owners list Moldovan businesses for sale and buyers subscribe to explore detailed, data-rich opportunities"
+user_problem_statement: "Build a professional, transparent, trust-focused web marketplace where owners list Moldovan businesses for sale and buyers subscribe to explore detailed, data-rich opportunities. Added: authentication system, email verification, subscription payments, and PDF document uploads."
 
 backend:
+  - task: "Authentication System"
+    implemented: true
+    working: "unknown"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "unknown"
+        agent: "main"
+        comment: "Implemented user registration, login, JWT authentication with role-based access control for buyers and sellers"
+
+  - task: "Email Verification System"
+    implemented: true
+    working: "unknown"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "unknown"
+        agent: "main"
+        comment: "Added email verification for both users and business listings before payment processing"
+
+  - task: "Subscription Payment System"
+    implemented: true
+    working: "unknown"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "unknown"
+        agent: "main"
+        comment: "Implemented buyer subscription system with monthly/annual plans and mock payment processing"
+
+  - task: "Document Upload/Download System"
+    implemented: true
+    working: "unknown"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "unknown"
+        agent: "main"
+        comment: "Added PDF document upload (max 10 files), base64 storage, and download functionality for subscribed users"
+
   - task: "Business Listings API"
     implemented: true
     working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: true
         agent: "main"
-        comment: "Implemented comprehensive business marketplace API with sample data, filtering, and detailed business profiles"
+        comment: "Updated business listings with document support and subscription-based access control"
 
   - task: "Business Filtering System"
     implemented: true
@@ -147,14 +195,11 @@ backend:
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
-      - working: "unknown"
-        agent: "main"
-        comment: "Added POST /businesses and PUT /businesses/{id} endpoints for creating and updating business listings with draft/publish workflow"
       - working: true
-        agent: "testing"
-        comment: "Comprehensive testing completed successfully. POST /businesses creates businesses with 'draft' status, PUT /businesses/{id} updates existing businesses, all validation working correctly. Minor: API response models don't include seller_email/updated_at but core functionality works perfectly."
+        agent: "main"
+        comment: "Updated with email verification workflow: draft → email verification → payment → active"
 
   - task: "Payment Processing API"
     implemented: true
@@ -162,27 +207,48 @@ backend:
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Enhanced payment processing with email verification prerequisite and status validation"
+
+frontend:
+  - task: "Authentication Interface"
+    implemented: true
+    working: "unknown"
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
     status_history:
       - working: "unknown"
         agent: "main"
-        comment: "Added mock payment processing API for listing fees with 90% success rate simulation"
-      - working: true
-        agent: "testing"
-        comment: "Payment processing API working perfectly. POST /businesses/{id}/payment processes payments with ~90% success rate simulation, successfully changes business status from draft/pending_payment to 'active' on successful payment, proper error handling for non-existent businesses."
+        comment: "Implemented login/signup modal with role selection, JWT token management, and user context"
 
-frontend:
+  - task: "Subscription Interface"
+    implemented: true
+    working: "unknown"
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "unknown"
+        agent: "main"
+        comment: "Added subscription modal with monthly/annual plans and payment processing"
+
   - task: "Business Directory Interface"
     implemented: true
     working: true
     file: "/app/frontend/src/App.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: true
         agent: "main"
-        comment: "Implemented professional business card layout with filtering and detailed modal views"
+        comment: "Updated with authentication-aware business cards and subscription-gated contact info"
 
   - task: "Professional UI Design"
     implemented: true
@@ -206,7 +272,19 @@ frontend:
     status_history:
       - working: "unknown"
         agent: "main"
-        comment: "Added comprehensive 5-step business listing form with validation, draft/publish functionality"
+        comment: "Enhanced 5-step form with document upload section and email verification workflow"
+
+  - task: "Document Management Interface"
+    implemented: true
+    working: "unknown"
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "unknown"
+        agent: "main"
+        comment: "Added file upload component with drag-drop, document list, and download functionality"
 
   - task: "Payment Interface"
     implemented: true
@@ -218,24 +296,31 @@ frontend:
     status_history:
       - working: "unknown"
         agent: "main"
-        comment: "Added mock payment modal with listing fee processing before publication"
+        comment: "Enhanced payment modals for both listing fees and subscription payments"
 
 metadata:
   created_by: "main_agent"
-  version: "1.2"
+  version: "2.0"
   test_sequence: 3
   run_ui: false
 
 test_plan:
   current_focus:
+    - "Authentication System"
+    - "Email Verification System" 
+    - "Subscription Payment System"
+    - "Document Upload/Download System"
+    - "Business Creation/Update API"
+    - "Payment Processing API"
+    - "Authentication Interface"
+    - "Subscription Interface"
     - "Business Listing Form"
+    - "Document Management Interface"
     - "Payment Interface"
   stuck_tasks: []
-  test_all: false
+  test_all: true
   test_priority: "high_first"
 
 agent_communication:
   - agent: "main"
-    message: "Added complete 'List Your Business' feature with 5-step form, draft/publish workflow, and mock payment processing. Need to test new backend endpoints and frontend listing form functionality."
-  - agent: "testing"
-    message: "BACKEND TESTING COMPLETED SUCCESSFULLY - All Business Creation/Update and Payment Processing APIs are working perfectly. Comprehensive test suite executed with 100% pass rate (45/45 tests). Key findings: 1) POST /businesses creates businesses with 'draft' status ✅ 2) PUT /businesses/{id} updates businesses correctly ✅ 3) GET /businesses/seller/{seller_id} retrieves seller businesses ✅ 4) POST /businesses/{id}/payment processes payments with ~90% success simulation ✅ 5) Complete workflow (create→update→pay→active→public listing) working ✅ 6) All validation, error handling, and status transitions working correctly ✅. Minor note: API response models missing seller_email/updated_at fields but core functionality perfect."
+    message: "Implemented complete authentication system, email verification, subscription payments, and PDF document management. Need comprehensive testing of all new features and integration workflows."
