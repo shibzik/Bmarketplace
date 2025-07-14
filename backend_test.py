@@ -1353,7 +1353,8 @@ class BusinessMarketplaceAPITester:
             
             async def get_seller_id():
                 client = AsyncIOMotorClient(os.environ['MONGO_URL'])
-                db = client[os.environ['DB_NAME']]
+                db_name = os.environ.get('DB_NAME', 'test_database')
+                db = client[db_name]
                 business = await db.business_listings.find_one()
                 seller_id = business.get('seller_id') if business else None
                 client.close()
@@ -1390,6 +1391,8 @@ class BusinessMarketplaceAPITester:
                 
         except ImportError:
             self.log_test("Seller Businesses", False, "Could not import required modules for database access")
+        except Exception as e:
+            self.log_test("Seller Businesses", False, f"Database access error: {str(e)}")
     
     def test_payment_processing(self):
         """Test payment processing API"""
