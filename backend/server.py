@@ -162,6 +162,30 @@ class UserResponse(BaseModel):
     is_email_verified: bool
     subscription_status: Optional[SubscriptionStatus] = None
     subscription_expires_at: Optional[datetime] = None
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+    
+    user = await db.users.find_one({"id": user_id})
+    if user is None:
+        raise HTTPException(status_code=401, detail="User not found")
+    return UserResponse(**user)
+
+async def get_current_buyer(current_user: UserResponse = Depends(get_current_user)):
+    if current_user.role != UserRole.BUYER:
+        raise HTTPException(status_code=403, detail="Buyer access required")
+    return current_user
+
+async def get_current_seller(current_user: UserResponse = Depends(get_current_user)):
+    if current_user.role != UserRole.SELLER:
+        raise HTTPException(status_code=403, detail="Seller access required")
+    return current_user
     created_at: datetime
 
 class EmailVerificationRequest(BaseModel):
