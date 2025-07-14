@@ -321,7 +321,8 @@ class BusinessMarketplaceAPITester:
         ]
         
         for sort_by, sort_order in sort_tests:
-            params = {"sort_by": sort_by, "sort_order": sort_order}
+            # Test with featured_first=False to get pure sorting
+            params = {"sort_by": sort_by, "sort_order": sort_order, "featured_first": False}
             response, success, error = self.make_request("GET", "/businesses", params)
             
             if not success:
@@ -356,6 +357,71 @@ class BusinessMarketplaceAPITester:
                     self.log_test(f"Sort by {sort_by} {sort_order}", False, "Invalid JSON response")
             else:
                 self.log_test(f"Sort by {sort_by} {sort_order}", False, f"Status code: {response.status_code}")
+        
+        # Test sorting with featured_first=True (default behavior)
+        print("\n=== Testing Sorting with Featured First ===")
+        params = {"sort_by": "asking_price", "sort_order": "asc", "featured_first": True}
+        response, success, error = self.make_request("GET", "/businesses", params)
+        
+        if success and response.status_code == 200:
+            try:
+                businesses = response.json()
+                if isinstance(businesses, list) and len(businesses) > 0:
+                    # Separate featured and non-featured businesses
+                    featured = [b for b in businesses if b.get('featured', False)]
+                    non_featured = [b for b in businesses if not b.get('featured', False)]
+                    
+                    # Check if featured businesses come first
+                    featured_first_correct = True
+                    if featured and non_featured:
+                        # Find the last featured business index and first non-featured business index
+                        last_featured_idx = -1
+                        first_non_featured_idx = len(businesses)
+                        
+                        for i, b in enumerate(businesses):
+                            if b.get('featured', False):
+                                last_featured_idx = i
+                            elif first_non_featured_idx == len(businesses):
+                                first_non_featured_idx = i
+                        
+                        if last_featured_idx >= first_non_featured_idx:
+                            featured_first_correct = False
+                    
+                    # Check sorting within each group
+                    featured_sorted = True
+                    non_featured_sorted = True
+                    
+                    if len(featured) > 1:
+                        featured_prices = [b.get('asking_price') for b in featured]
+                        for i in range(1, len(featured_prices)):
+                            if featured_prices[i] < featured_prices[i-1]:
+                                featured_sorted = False
+                                break
+                    
+                    if len(non_featured) > 1:
+                        non_featured_prices = [b.get('asking_price') for b in non_featured]
+                        for i in range(1, len(non_featured_prices)):
+                            if non_featured_prices[i] < non_featured_prices[i-1]:
+                                non_featured_sorted = False
+                                break
+                    
+                    if featured_first_correct and featured_sorted and non_featured_sorted:
+                        self.log_test("Featured First + Sorting", True, f"Featured businesses first, then sorted within groups")
+                    else:
+                        issues = []
+                        if not featured_first_correct:
+                            issues.append("featured not first")
+                        if not featured_sorted:
+                            issues.append("featured group not sorted")
+                        if not non_featured_sorted:
+                            issues.append("non-featured group not sorted")
+                        self.log_test("Featured First + Sorting", False, f"Issues: {', '.join(issues)}")
+                else:
+                    self.log_test("Featured First + Sorting", False, "No businesses returned")
+            except json.JSONDecodeError:
+                self.log_test("Featured First + Sorting", False, "Invalid JSON response")
+        else:
+            self.log_test("Featured First + Sorting", False, f"Request failed: {error if not success else response.status_code}")
     
     def test_featured_prioritization(self):
         """Test featured business prioritization"""
